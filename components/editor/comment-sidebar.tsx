@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Spinner } from "@/components/ui/spinner";
 
 export interface Comment {
   id: string;
@@ -240,7 +241,7 @@ export function CommentSidebar({
             disabled={posting || !newComment.trim()}
             className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-neutral-800 disabled:text-neutral-600 text-white text-sm font-medium rounded-lg transition-colors touch-manipulation"
           >
-            {posting ? "Posting..." : "Post Comment"}
+            {posting ? <><Spinner context="comment" /></> : "Post Comment"}
           </button>
         </div>
       )}

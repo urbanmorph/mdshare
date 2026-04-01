@@ -6,6 +6,7 @@ import { LinkManager } from "@/components/ui/link-manager";
 import { CommentSidebar } from "@/components/editor/comment-sidebar";
 import type { Comment } from "@/components/editor/comment-sidebar";
 import { DownloadButton } from "@/components/ui/download-button";
+import { AboutButton } from "@/components/ui/about-modal";
 import type { DocumentRow } from "@/lib/db";
 import type { Permission } from "@/lib/tokens";
 import type { CommentAnchor } from "@/components/editor/comment-highlight";
@@ -238,6 +239,7 @@ export function DocumentView({
             tokenKey={tokenKey}
             title={doc.title}
           />
+          <AboutButton />
         </div>
       </header>
 

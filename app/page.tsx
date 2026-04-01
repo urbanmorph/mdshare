@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { AboutButton } from "@/components/ui/about-modal";
+import { Spinner } from "@/components/ui/spinner";
 
 interface CreateResult {
   document_id: string;
@@ -172,7 +174,10 @@ export default function Home() {
   return (
     <main className="flex-1 flex items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-xl space-y-6">
-        <div className="text-center">
+        <div className="text-center relative">
+          <div className="absolute right-0 top-0">
+            <AboutButton />
+          </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-white">
             md<span className="text-indigo-400">share</span>
           </h1>
@@ -237,7 +242,7 @@ export default function Home() {
           disabled={loading || !content.trim()}
           className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-neutral-800 disabled:text-neutral-600 text-white font-medium rounded-xl transition-colors"
         >
-          {loading ? "Creating..." : "Create & Get Share Links"}
+          {loading ? <Spinner context="upload" /> : "Create & Get Share Links"}
         </button>
 
         <p className="hidden sm:block text-center text-xs text-neutral-600">

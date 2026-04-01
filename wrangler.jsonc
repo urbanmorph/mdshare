@@ -32,7 +32,7 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_classes": ["DocumentWebSocket"]
+      "new_sqlite_classes": ["DocumentWebSocket"]
     }
   ]
 }

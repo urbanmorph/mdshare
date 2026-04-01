@@ -1,36 +1,130 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# mdshare
 
-## Getting Started
+Share markdown instantly. No login required.
 
-First, run the development server:
+**Live:** [mdshare.live](https://mdshare.live) | **API Docs:** [mdshare.live/docs](https://mdshare.live/docs)
+
+---
+
+## What is mdshare?
+
+Upload a markdown file, get shareable links with different permissions, collaborate in a WYSIWYG editor. Zero accounts, zero setup. Works from the browser, terminal, or any AI chatbot.
+
+## Features
+
+- **Zero login** -- everything is link-based, no accounts needed
+- **Four permission levels** -- Admin, Edit, Comment, View -- each with its own shareable link
+- **WYSIWYG editor** -- rich text editing with formatting toolbar
+- **Inline comments** -- select text, leave comments anchored to specific sections
+- **Real-time updates** -- changes appear across all connected browsers
+- **API & AI-friendly** -- full REST API, works with curl and AI chatbots
+- **Content sanitization** -- XSS protection, binary file rejection, protocol whitelist
+- **Mobile responsive** -- works on phones and tablets
+
+## Quick Start
+
+### Upload via browser
+
+Go to [mdshare.live](https://mdshare.live), paste or drag-drop a `.md` file, and get your share links.
+
+### Upload via curl
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+curl -X POST https://mdshare.live/api/documents \
+  -H "Content-Type: text/markdown" \
+  --data-binary @your-file.md
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Response:
+```json
+{
+  "document_id": "abc123",
+  "admin_key": "adm_xK9mQ4r8...",
+  "admin_url": "https://mdshare.live/d/abc123?key=adm_xK9mQ4r8..."
+}
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Read a document
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+curl -H "Accept: text/markdown" \
+  "https://mdshare.live/api/d/{id}?key={key}"
+```
 
-## Learn More
+### Update a document
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+curl -X PUT "https://mdshare.live/api/d/{id}?key={edit_or_admin_key}" \
+  -H "Content-Type: text/markdown" \
+  --data-binary @updated.md
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Generate a share link
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+curl -X POST "https://mdshare.live/api/d/{id}/links?key={admin_key}" \
+  -H "Content-Type: application/json" \
+  -d '{"permission": "edit", "label": "for-team"}'
+```
 
-## Deploy on Vercel
+## Permissions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Key prefix | Level | Can do |
+|-----------|-------|--------|
+| `adm_` | Admin | Full control + manage links + delete |
+| `edt_` | Edit | Read + write + comment |
+| `cmt_` | Comment | Read + add comments |
+| `viw_` | View | Read only |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Links are freely forwardable. The admin key is the master key -- save it.
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Framework | Next.js 16 (App Router) |
+| Hosting | Cloudflare Workers (via OpenNext) |
+| Database | Cloudflare D1 (SQLite) |
+| Real-time | Cloudflare Durable Objects (WebSocket) |
+| Editor | Tiptap + tiptap-markdown |
+| Styling | Tailwind CSS v4 |
+| CI/CD | GitHub Actions |
+
+## Local Development
+
+```bash
+git clone https://github.com/urbanmorph/mdshare.git
+cd mdshare
+npm install
+
+# Create a .dev.vars file with your Cloudflare API token
+echo "CLOUDFLARE_API_TOKEN=your_token" > .dev.vars
+
+# Apply local D1 migrations
+npx wrangler d1 migrations apply mdshare-db --local
+
+# Start dev server
+npm run dev -- -p 3737
+```
+
+## Deployment
+
+Pushes to `main` auto-deploy via GitHub Actions to Cloudflare Workers.
+
+Manual deploy:
+```bash
+CLOUDFLARE_API_TOKEN=your_token npx opennextjs-cloudflare build && npx opennextjs-cloudflare deploy
+```
+
+## API Documentation
+
+Full API docs at [mdshare.live/docs](https://mdshare.live/docs).
+
+Raw markdown version:
+```bash
+curl https://mdshare.live/docs/raw
+```
+
+## License
+
+MIT

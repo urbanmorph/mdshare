@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { Spinner } from "@/components/ui/spinner";
 
 interface LinkItem {
   id: string;
@@ -209,7 +210,7 @@ export function LinkManager({ documentId, adminKey }: LinkManagerProps) {
           disabled={creating}
           className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-neutral-800 text-white text-sm font-medium rounded-lg transition-colors touch-manipulation"
         >
-          {creating ? "Creating..." : "Generate Link"}
+          {creating ? <Spinner context="link" /> : "Generate Link"}
         </button>
         <p className="text-[10px] text-neutral-600 mt-2 text-center">
           Auto-copied to clipboard on creation
