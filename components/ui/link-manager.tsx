@@ -165,7 +165,7 @@ export function LinkManager({ documentId, adminKey }: LinkManagerProps) {
         })}
         {loaded && links.length === 0 && (
           <p className="text-xs text-neutral-600 text-center py-2">
-            No share links yet
+            Generate your first link below to start sharing
           </p>
         )}
       </div>
