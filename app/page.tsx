@@ -1,65 +1,252 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useRef, useCallback } from "react";
+
+interface CreateResult {
+  document_id: string;
+  admin_key: string;
+  admin_url: string;
+}
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
+  const [content, setContent] = useState("");
+  const [result, setResult] = useState<CreateResult | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCreate = useCallback(async () => {
+    const text = content.trim();
+    if (!text) {
+      setError("Paste or drop some markdown first");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "text/markdown" },
+        body: text,
+      });
+
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error || "Failed to create document");
+      }
+
+      const data: CreateResult = await res.json();
+      setResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }, [content]);
+
+  const handleFile = useCallback(async (file: File) => {
+    if (!file.name.match(/\.mdx?$/i)) {
+      setError("Only .md and .mdx files are supported");
+      return;
+    }
+
+    const text = await file.text();
+    setContent(text);
+    setError("");
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    },
+    [handleFile]
+  );
+
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) handleFile(file);
+    },
+    [handleFile]
+  );
+
+  if (result) {
+    return (
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-8">
+        <div className="w-full max-w-lg space-y-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-white">
+              md<span className="text-indigo-400">share</span>
+            </h1>
+            <p className="mt-2 text-sm text-green-400">
+              Document created successfully
+            </p>
+          </div>
+
+          <div className="bg-neutral-900 rounded-xl border border-neutral-800 p-4 sm:p-6 space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-2">
+                Admin URL (save this — it&apos;s your master key)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={result.admin_url}
+                  className="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm font-mono text-neutral-300 truncate"
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(result.admin_url);
+                    setCopiedField("url");
+                    setTimeout(() => setCopiedField(null), 2000);
+                  }}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors min-w-[72px] ${
+                    copiedField === "url"
+                      ? "bg-green-700 text-green-100"
+                      : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                  }`}
+                >
+                  {copiedField === "url" ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-2">
+                Admin Key
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={result.admin_key}
+                  className="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm font-mono text-neutral-300 truncate"
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(result.admin_key);
+                    setCopiedField("key");
+                    setTimeout(() => setCopiedField(null), 2000);
+                  }}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors min-w-[72px] ${
+                    copiedField === "key"
+                      ? "bg-green-700 text-green-100"
+                      : "bg-neutral-700 hover:bg-neutral-600 text-neutral-300"
+                  }`}
+                >
+                  {copiedField === "key" ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
+
             <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              href={result.admin_url}
+              className="block w-full text-center py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg transition-colors"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+              Open Document
+            </a>
+          </div>
+
+          <button
+            onClick={() => {
+              setResult(null);
+              setContent("");
+            }}
+            className="block mx-auto text-sm text-neutral-500 hover:text-neutral-300 transition-colors"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            Create another
+          </button>
         </div>
       </main>
-    </div>
+    );
+  }
+
+  return (
+    <main className="flex-1 flex items-center justify-center p-4 sm:p-8">
+      <div className="w-full max-w-xl space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl sm:text-4xl font-bold text-white">
+            md<span className="text-indigo-400">share</span>
+          </h1>
+          <p className="mt-2 text-neutral-500">
+            Share markdown instantly. No login required.
+          </p>
+        </div>
+
+        {/* Drop zone */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center cursor-pointer transition-colors ${
+            isDragging
+              ? "border-indigo-500 bg-indigo-500/5"
+              : "border-neutral-700 hover:border-neutral-500"
+          }`}
+        >
+          <div className="text-3xl mb-3 text-neutral-600">+</div>
+          <p className="text-neutral-400">
+            Drop a .md file here, or click to browse
+          </p>
+          <p className="text-xs text-neutral-600 mt-1">
+            Max 10MB &middot; Markdown only
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".md,.mdx"
+            onChange={handleFileInput}
+            className="hidden"
+          />
+        </div>
+
+        <div className="text-center text-xs text-neutral-600">
+          or paste your markdown below
+        </div>
+
+        {/* Paste area */}
+        <textarea
+          value={content}
+          onChange={(e) => {
+            setContent(e.target.value);
+            setError("");
+          }}
+          placeholder={"# My Document\n\nPaste your markdown here..."}
+          rows={8}
+          className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-sm font-mono text-neutral-300 placeholder-neutral-600 resize-y focus:outline-none focus:border-indigo-500 transition-colors"
+        />
+
+        {error && (
+          <p className="text-sm text-red-400 text-center">{error}</p>
+        )}
+
+        <button
+          onClick={handleCreate}
+          disabled={loading || !content.trim()}
+          className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-neutral-800 disabled:text-neutral-600 text-white font-medium rounded-xl transition-colors"
+        >
+          {loading ? "Creating..." : "Create & Get Share Links"}
+        </button>
+
+        <p className="hidden sm:block text-center text-xs text-neutral-600">
+          Also works via API &middot;{" "}
+          <code className="text-indigo-400">
+            curl -X POST /api/documents --data-binary @file.md
+          </code>
+        </p>
+      </div>
+    </main>
   );
 }
