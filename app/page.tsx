@@ -248,7 +248,7 @@ export default function Home() {
         <p className="hidden sm:block text-center text-xs text-neutral-600">
           Also works via API &middot;{" "}
           <code className="text-indigo-400">
-            curl -X POST /api/documents --data-binary @file.md
+            curl -X POST mdshare.live/api/documents --data-binary @file.md
           </code>
         </p>
       </div>

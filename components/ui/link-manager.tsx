@@ -192,19 +192,15 @@ export function LinkManager({ documentId, adminKey }: LinkManagerProps) {
           placeholder="Label (optional)"
           className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-300 placeholder-neutral-600 mb-2 touch-manipulation"
         />
-        <div className="relative mb-2">
+        <label className="block mb-2">
+          <span className="text-[11px] text-neutral-600 mb-1 block">Expires (optional)</span>
           <input
             type="datetime-local"
             value={newExpiry}
             onChange={(e) => setNewExpiry(e.target.value)}
             className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-300 touch-manipulation [color-scheme:dark]"
           />
-          {!newExpiry && (
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-600 pointer-events-none">
-              Expires (optional)
-            </span>
-          )}
-        </div>
+        </label>
         <button
           onClick={createLink}
           disabled={creating}
