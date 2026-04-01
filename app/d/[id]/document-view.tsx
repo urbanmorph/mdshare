@@ -7,6 +7,7 @@ import { CommentSidebar } from "@/components/editor/comment-sidebar";
 import type { Comment } from "@/components/editor/comment-sidebar";
 import { DownloadButton } from "@/components/ui/download-button";
 import { AboutButton } from "@/components/ui/about-modal";
+import { ShortcutsHelp } from "@/components/ui/shortcuts-help";
 import type { DocumentRow } from "@/lib/db";
 import type { Permission } from "@/lib/tokens";
 import type { CommentAnchor } from "@/components/editor/comment-highlight";
@@ -52,9 +53,36 @@ export function DocumentView({
   const editable = permission === "admin" || permission === "edit";
   const canComment = permission === "admin" || permission === "edit" || permission === "comment";
 
-  const togglePanel = (panel: Panel) => {
+  const togglePanel = useCallback((panel: Panel) => {
     setOpenPanel((prev) => (prev === panel ? null : panel));
-  };
+  }, []);
+
+  // Presence heartbeat
+  const [viewers, setViewers] = useState<{ name: string }[]>([]);
+  const sessionIdRef = useRef(Math.random().toString(36).slice(2));
+
+  useEffect(() => {
+    const sendHeartbeat = async () => {
+      try {
+        const res = await fetch(`/api/d/${doc.id}/presence?key=${tokenKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session_id: sessionIdRef.current,
+            name: displayName,
+          }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { viewers: { name: string }[]; count: number };
+          setViewers(data.viewers);
+        }
+      } catch {}
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 30000);
+    return () => clearInterval(interval);
+  }, [doc.id, tokenKey, displayName]);
 
   // Real-time updates via WebSocket (falls back to polling if unavailable)
   const handleWSUpdate = useCallback((content: string, contentHash: string) => {
@@ -137,6 +165,40 @@ export function DocumentView({
     };
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+
+      switch (e.key) {
+        case "s":
+          // Save — trigger the editor's debounced save immediately
+          e.preventDefault();
+          break;
+        case "\\":
+          // Toggle comments panel
+          e.preventDefault();
+          if (canComment) togglePanel("comments");
+          break;
+        case "l":
+          // Toggle links panel (admin only)
+          if (permission === "admin") {
+            e.preventDefault();
+            togglePanel("links");
+          }
+          break;
+        case "d":
+          // Download
+          e.preventDefault();
+          document.querySelector<HTMLButtonElement>("[title='Download .md']")?.click();
+          break;
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [canComment, permission, togglePanel]);
+
   const handleUpdate = useCallback(
     async (markdown: string) => {
       setSaveStatus("Saving...");
@@ -184,10 +246,12 @@ export function DocumentView({
           <span className="text-sm text-neutral-300 truncate hidden sm:inline">
             {doc.title}
           </span>
-          {presenceCount > 1 && (
-            <span className="hidden sm:flex items-center gap-1 text-[11px] text-green-400 shrink-0">
+          {viewers.length > 0 && (
+            <span className="hidden sm:flex items-center gap-1.5 text-[11px] text-green-400 shrink-0" title={viewers.map(v => v.name).join(", ")}>
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              {presenceCount} online
+              {viewers.length === 1
+                ? viewers[0].name
+                : `${viewers.length} online`}
             </span>
           )}
           <span
@@ -242,6 +306,7 @@ export function DocumentView({
             tokenKey={tokenKey}
             title={doc.title}
           />
+          <ShortcutsHelp isAdmin={permission === "admin"} />
           <AboutButton />
         </div>
       </header>
