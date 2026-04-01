@@ -174,16 +174,23 @@ export default function Home() {
   return (
     <main className="flex-1 flex items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-xl space-y-6">
-        <div className="text-center relative">
-          <div className="absolute right-0 top-0">
-            <AboutButton />
-          </div>
+        <div className="text-center">
           <h1 className="text-3xl sm:text-4xl font-bold text-white">
             md<span className="text-indigo-400">share</span>
           </h1>
           <p className="mt-2 text-neutral-500">
             Share markdown instantly. No login required.
           </p>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <AboutButton variant="text" />
+            <span className="text-neutral-700">|</span>
+            <a
+              href="/docs"
+              className="text-sm text-indigo-400 hover:text-indigo-300 underline underline-offset-4 decoration-indigo-400/30 hover:decoration-indigo-300/50 transition-colors"
+            >
+              API Docs
+            </a>
+          </div>
         </div>
 
         {/* Drop zone */}
