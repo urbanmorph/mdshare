@@ -196,7 +196,7 @@ export function CommentSidebar({
         })}
         {displayComments.length === 0 && (
           <p className="text-xs text-neutral-600 text-center py-4">
-            {comments.length > 0 ? "All comments resolved" : "No comments yet"}
+            {comments.length > 0 ? "All comments resolved" : "Select text in the document to leave a comment"}
           </p>
         )}
       </div>
