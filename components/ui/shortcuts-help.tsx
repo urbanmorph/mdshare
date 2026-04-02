@@ -34,10 +34,10 @@ export function ShortcutsHelp({ isAdmin = false }: { isAdmin?: boolean }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="p-2 rounded-lg text-neutral-600 hover:text-neutral-400 hover:bg-neutral-800 transition-colors touch-manipulation hidden sm:flex items-center justify-center"
+        className="min-w-[44px] h-11 sm:min-w-[32px] sm:h-8 flex items-center justify-center rounded text-sm font-semibold text-neutral-400 hover:bg-neutral-800 hover:text-white transition-colors touch-manipulation"
         title="Keyboard shortcuts"
       >
-        <span className="text-xs font-mono font-bold">?</span>
+        <span className="font-mono">?</span>
       </button>
 
       {open && (
