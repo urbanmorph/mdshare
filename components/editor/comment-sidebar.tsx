@@ -24,6 +24,7 @@ interface CommentSidebarProps {
   activeCommentId: string | null;
   onActiveCommentChange: (id: string | null) => void;
   displayName: string;
+  onChangeDisplayName: (name: string) => void;
 }
 
 export function CommentSidebar({
@@ -37,6 +38,7 @@ export function CommentSidebar({
   activeCommentId,
   onActiveCommentChange,
   displayName,
+  onChangeDisplayName,
 }: CommentSidebarProps) {
   const [newComment, setNewComment] = useState("");
   const [posting, setPosting] = useState(false);
@@ -324,7 +326,20 @@ export function CommentSidebar({
             </div>
           )}
           <p className="text-[11px] text-neutral-600 mb-2">
-            Commenting as <span className="text-neutral-400">{displayName}</span>
+            Commenting as{" "}
+            {displayName === "Anonymous" ? (
+              <button
+                onClick={() => {
+                  const name = prompt("What's your name?");
+                  if (name?.trim()) onChangeDisplayName(name.trim());
+                }}
+                className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors"
+              >
+                Anonymous (tap to set name)
+              </button>
+            ) : (
+              <span className="text-neutral-300">{displayName}</span>
+            )}
           </p>
           <textarea
             value={newComment}
