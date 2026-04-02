@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Allow: /docs
+Allow: /llms.txt
 
 Disallow: /api/
 Disallow: /d/
