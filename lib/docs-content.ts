@@ -105,7 +105,7 @@ Optional: add \`"expires_at": "2026-05-01T00:00:00Z"\` to set an expiry date.
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| \`POST\` | \`/api/d/:id/comments?key=KEY\` | Comment/Edit/Admin | Add comment. Body: \`{content, author_name, anchor_text}\` |
+| \`POST\` | \`/api/d/:id/comments?key=KEY\` | Comment/Edit/Admin | Add comment. Body: \`{content, author_name, anchor_text, parent_id}\`. Replies nest one level. |
 | \`GET\` | \`/api/d/:id/comments?key=KEY\` | Any | List comments |
 | \`PATCH\` | \`/api/comments/:id?key=KEY\` | Edit/Admin | Resolve/unresolve comment. Body: \`{resolved: true}\` |
 

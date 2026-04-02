@@ -10,7 +10,7 @@ Upload: POST /api/documents (Content-Type: text/markdown, body: raw markdown)
 Read: GET /api/d/{id}?key={key} (Accept: text/markdown for raw)
 Update: PUT /api/d/{id}?key={edit_key} (Content-Type: text/markdown, X-Author: name)
 Links: POST /api/d/{id}/links?key={admin_key} (body: {permission, label, expires_at})
-Comments: POST /api/d/{id}/comments?key={key} (body: {content, author_name, anchor_text})
+Comments: POST /api/d/{id}/comments?key={key} (body: {content, author_name, anchor_text, parent_id}). Replies nest one level.
 Versions: GET /api/d/{id}/versions?key={key}
 Presence: POST /api/d/{id}/presence?key={key} (body: {session_id, name})
 

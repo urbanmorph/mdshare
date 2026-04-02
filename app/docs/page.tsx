@@ -111,7 +111,7 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
           <table>
             <thead><tr><th>Method</th><th>Endpoint</th><th>Auth</th><th>Description</th></tr></thead>
             <tbody>
-              <tr><td><code>POST</code></td><td><code>/api/d/:id/comments?key=KEY</code></td><td>Comment/Edit/Admin</td><td>Add comment</td></tr>
+              <tr><td><code>POST</code></td><td><code>/api/d/:id/comments?key=KEY</code></td><td>Comment/Edit/Admin</td><td>Add comment (body: content, author_name, anchor_text, parent_id). Replies nest one level.</td></tr>
               <tr><td><code>GET</code></td><td><code>/api/d/:id/comments?key=KEY</code></td><td>Any</td><td>List comments</td></tr>
               <tr><td><code>PATCH</code></td><td><code>/api/comments/:id?key=KEY</code></td><td>Edit/Admin</td><td>Resolve comment</td></tr>
             </tbody>
