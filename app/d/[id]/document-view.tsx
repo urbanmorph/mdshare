@@ -68,43 +68,17 @@ export function DocumentView({
     });
   }, [doc.id, doc.title, tokenKey, permission]);
 
-  // Presence heartbeat
+  // Combined polling — single request for content, comments, and presence
   const [viewers, setViewers] = useState<{ name: string }[]>([]);
   const sessionIdRef = useRef(Math.random().toString(36).slice(2));
 
-  useEffect(() => {
-    const sendHeartbeat = async () => {
-      try {
-        const res = await fetch(`/api/d/${doc.id}/presence?key=${tokenKey}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            session_id: sessionIdRef.current,
-            name: displayName,
-          }),
-        });
-        if (res.ok) {
-          const data = (await res.json()) as { viewers: { name: string }[]; count: number };
-          setViewers(data.viewers);
-        }
-      } catch {}
-    };
-
-    sendHeartbeat();
-    const interval = setInterval(sendHeartbeat, 30000);
-    return () => clearInterval(interval);
-  }, [doc.id, tokenKey, displayName]);
-
-  // Flash tab title when content is updated by someone else
   const flashTabTitle = useCallback(() => {
     const original = document.title;
     document.title = "Updated — " + original.replace("Updated — ", "");
-    setTimeout(() => {
-      document.title = original;
-    }, 3000);
+    setTimeout(() => { document.title = original; }, 3000);
   }, []);
 
-  // Real-time updates via WebSocket (falls back to polling if unavailable)
+  // WebSocket for instant updates (falls back to polling)
   const handleWSUpdate = useCallback((content: string, contentHash: string) => {
     if (isSavingRef.current) return;
     setLiveContent(content);
@@ -114,38 +88,58 @@ export function DocumentView({
     setTimeout(() => setSaveStatus("Ready"), 2000);
   }, [flashTabTitle]);
 
-  const { broadcastUpdate, presenceCount, connected: wsConnected } = useDocumentWS({
+  const { broadcastUpdate, connected: wsConnected } = useDocumentWS({
     documentId: doc.id,
     tokenKey,
     onContentUpdate: handleWSUpdate,
     enabled: true,
   });
 
-  // Fallback polling when WebSocket is not connected
-  const pollDocument = useCallback(async () => {
-    if (isSavingRef.current || wsConnected) return;
-    const res = await fetch(`/api/d/${doc.id}?key=${tokenKey}`);
-    if (res.ok) {
+  // Single poll loop — replaces 3 separate intervals
+  const poll = useCallback(async () => {
+    if (isSavingRef.current) return;
+    try {
+      const res = await fetch(`/api/d/${doc.id}/poll?key=${tokenKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionIdRef.current,
+          name: displayName,
+          content_hash: wsConnected ? undefined : lastContentHash,
+        }),
+      });
+      if (!res.ok) return;
       const data = (await res.json()) as {
-        content: string;
-        content_hash?: string;
+        content_hash: string;
+        content?: string;
+        comments: Comment[];
+        viewers: { name: string }[];
       };
-      if (data.content_hash && data.content_hash !== lastContentHash) {
+
+      // Update presence
+      setViewers(data.viewers);
+
+      // Update comments
+      setComments(data.comments);
+
+      // Update content (only if changed and not using WebSocket)
+      if (!wsConnected && data.content && data.content_hash !== lastContentHash) {
         setLiveContent(data.content);
         setLastContentHash(data.content_hash);
         setSaveStatus("Updated");
         flashTabTitle();
         setTimeout(() => setSaveStatus("Ready"), 2000);
       }
-    }
-  }, [doc.id, tokenKey, lastContentHash, wsConnected, flashTabTitle]);
+    } catch {}
+  }, [doc.id, tokenKey, displayName, lastContentHash, wsConnected, flashTabTitle]);
 
   useEffect(() => {
-    const interval = setInterval(pollDocument, 3000);
+    poll();
+    const interval = setInterval(poll, 5000);
     return () => clearInterval(interval);
-  }, [pollDocument]);
+  }, [poll]);
 
-  // Fetch comments
+  // Manual comment refetch (after posting a new comment)
   const fetchComments = useCallback(async () => {
     const res = await fetch(`/api/d/${doc.id}/comments?key=${tokenKey}`);
     if (res.ok) {
@@ -153,14 +147,6 @@ export function DocumentView({
       setComments(data.comments);
     }
   }, [doc.id, tokenKey]);
-
-  useEffect(() => {
-    if (canComment || permission === "view") {
-      fetchComments();
-      const interval = setInterval(fetchComments, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [fetchComments, canComment, permission]);
 
   const commentAnchors: CommentAnchor[] = useMemo(
     () =>

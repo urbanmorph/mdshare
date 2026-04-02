@@ -64,11 +64,23 @@ export const CommentHighlight = Extension.create({
           init() {
             return DecorationSet.empty;
           },
-          apply(tr) {
+          apply(tr, oldSet) {
             const anchors = extension.storage.anchors as CommentAnchor[];
             const activeId = extension.storage.activeCommentId as string | null;
 
             if (anchors.length === 0) return DecorationSet.empty;
+
+            // Skip rebuild if doc hasn't changed and no metadata updates
+            if (!tr.docChanged && oldSet !== DecorationSet.empty) {
+              // Only rebuild if activeId changed (check via a stored ref)
+              const prevActiveId = extension.storage._prevActiveId;
+              const prevAnchorCount = extension.storage._prevAnchorCount;
+              if (activeId === prevActiveId && anchors.length === prevAnchorCount) {
+                return oldSet;
+              }
+            }
+            extension.storage._prevActiveId = activeId;
+            extension.storage._prevAnchorCount = anchors.length;
 
             const doc = tr.doc;
             const { text: fullText, positions } = buildTextMap(doc);
