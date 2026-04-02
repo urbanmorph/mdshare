@@ -1,0 +1,27 @@
+{
+  "name": "mdshare-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for mdshare — share markdown instantly via AI",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "mdshare-mcp": "index.js"
+  },
+  "keywords": [
+    "mcp",
+    "markdown",
+    "sharing",
+    "collaboration",
+    "mdshare",
+    "model-context-protocol"
+  ],
+  "author": "UrbanMorph",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/urbanmorph/mdshare"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
