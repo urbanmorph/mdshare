@@ -110,21 +110,26 @@ export function AboutButton({ variant = "icon" }: { variant?: "icon" | "text" })
               />
             </div>
 
-            <div className="mt-6 pt-5 border-t border-neutral-800 flex items-center justify-between">
-              <a
-                href="/docs"
-                className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
-              >
-                API Documentation
-              </a>
-              <a
-                href="https://github.com/urbanmorph/mdshare"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-neutral-500 hover:text-neutral-300 transition-colors"
-              >
-                GitHub
-              </a>
+            <div className="mt-6 pt-5 border-t border-neutral-800">
+              <p className="text-[11px] text-neutral-600 leading-relaxed mb-4">
+                <span className="text-neutral-400">Fine print:</span> You own your content — we just host it. Don&apos;t upload anything illegal or sensitive. Links are keys — anyone with a link can access the document. Documents expire in 90 days. No guarantees on uptime, availability, or data recovery. Service is free, provided as-is.
+              </p>
+              <div className="flex items-center justify-between">
+                <a
+                  href="/docs"
+                  className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  API Documentation
+                </a>
+                <a
+                  href="https://github.com/urbanmorph/mdshare"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-neutral-500 hover:text-neutral-300 transition-colors"
+                >
+                  GitHub
+                </a>
+              </div>
             </div>
           </div>
         </div>
