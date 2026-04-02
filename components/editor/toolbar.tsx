@@ -42,7 +42,7 @@ function Separator() {
 
 export function Toolbar({ editor }: ToolbarProps) {
   return (
-    <div className="flex items-center gap-0.5 px-2 sm:px-4 py-1.5 sm:py-2 border-b border-neutral-800 bg-neutral-950 overflow-x-auto scrollbar-hide">
+    <div className="flex items-center gap-0.5 px-2 sm:px-4 py-1.5 sm:py-2 border-b border-neutral-800 bg-neutral-950 flex-wrap sm:flex-nowrap sm:overflow-x-auto sm:scrollbar-thin">
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
         active={editor.isActive("bold")}

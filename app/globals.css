@@ -33,17 +33,24 @@ body {
 .prose-docs td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #1a1a1a; color: #bbb; }
 .prose-docs strong { color: #eee; }
 
-/* Hide scrollbar for toolbar horizontal scroll */
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+/* Thin scrollbar for toolbar horizontal scroll */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
 }
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+.scrollbar-thin::-webkit-scrollbar {
+  height: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
 }
 
 /* Shared prose styles for editor and viewer */
-.tiptap, .prose-viewer { color: #d4d4d4; line-height: 1.7; }
+.tiptap, .prose-viewer { color: #d4d4d4; line-height: 1.7; overflow-wrap: break-word; word-break: break-word; }
 .prose-viewer { font-size: 0.9375rem; }
 .tiptap { outline: none; }
 
