@@ -212,6 +212,28 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
   }
 }`}</code></pre>
 
+          <h4>Cursor</h4>
+          <p>Add to <code>~/.cursor/mcp.json</code>:</p>
+          <pre><code>{`{
+  "mcpServers": {
+    "mdshare": {
+      "command": "npx",
+      "args": ["mdshare-mcp"]
+    }
+  }
+}`}</code></pre>
+
+          <h4>Windsurf</h4>
+          <p>Add to <code>~/.codeium/windsurf/mcp_config.json</code>:</p>
+          <pre><code>{`{
+  "mcpServers": {
+    "mdshare": {
+      "command": "npx",
+      "args": ["mdshare-mcp"]
+    }
+  }
+}`}</code></pre>
+
           <h3>What to tell your AI</h3>
           <ul className="list-disc pl-5 space-y-1 text-sm text-neutral-300">
             <li>&ldquo;Upload my-notes.md to mdshare and give me an edit link&rdquo;</li>
