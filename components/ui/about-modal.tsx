@@ -70,7 +70,7 @@ export function AboutButton({ variant = "icon" }: { variant?: "icon" | "text" })
                   </svg>
                 }
                 title="WYSIWYG editor"
-                desc="Rich text editing with formatting toolbar. Edit markdown visually — bold, headings, lists, code blocks, and more."
+                desc="Rich text editing with formatting toolbar, syntax-highlighted code blocks, tables, and keyboard shortcuts. Viewers get a clean rendered markdown."
               />
               <Feature
                 icon={
@@ -78,8 +78,8 @@ export function AboutButton({ variant = "icon" }: { variant?: "icon" | "text" })
                     <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 011.037-.443 48.282 48.282 0 005.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
                   </svg>
                 }
-                title="Inline comments"
-                desc="Select text and leave comments anchored to specific sections. Highlights link comments to the text they reference."
+                title="Inline comments & replies"
+                desc="Select text and leave comments anchored to specific sections. Reply to comments, resolve them. Click a comment to jump to the highlighted text."
               />
               <Feature
                 icon={
@@ -105,8 +105,8 @@ export function AboutButton({ variant = "icon" }: { variant?: "icon" | "text" })
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
                   </svg>
                 }
-                title="Real-time updates"
-                desc="Changes appear across all connected browsers within seconds. Version history is automatically maintained."
+                title="Real-time & mobile"
+                desc="See who's online, changes appear within seconds, tab title flashes on updates. Mobile-friendly with native share tray."
               />
             </div>
 
