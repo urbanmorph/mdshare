@@ -9,6 +9,7 @@ interface CreateResult {
   document_id: string;
   admin_key: string;
   admin_url: string;
+  expires_at?: string;
 }
 
 export default function Home() {
@@ -19,10 +20,15 @@ export default function Home() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([]);
+  const [stats, setStats] = useState<{ documents_shared: number; comments_posted: number; collaborators: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setRecentDocs(getRecentDocs());
+    fetch("/api/stats")
+      .then(r => r.ok ? r.json() as Promise<{ documents_shared: number; comments_posted: number; collaborators: number }> : null)
+      .then(data => { if (data) setStats(data); })
+      .catch(() => {});
   }, []);
 
   const handleCreate = useCallback(async () => {
@@ -155,6 +161,12 @@ export default function Home() {
               </div>
             </div>
 
+            {result.expires_at && (
+              <p className="text-[11px] text-neutral-600 text-center">
+                Document expires {new Date(result.expires_at).toLocaleDateString()}
+              </p>
+            )}
+
             <a
               href={result.admin_url}
               className="block w-full text-center py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg transition-colors"
@@ -187,7 +199,18 @@ export default function Home() {
           <p className="mt-2 text-neutral-500">
             Share markdown instantly. No login required.
           </p>
-          <div className="mt-4 flex items-center justify-center gap-3">
+          {stats && (stats.documents_shared > 0 || stats.comments_posted > 0) && (
+            <p className="mt-4 text-sm text-neutral-500 tracking-wide">
+              <span className="text-neutral-300 font-semibold">{stats.documents_shared.toLocaleString()}</span> documents shared
+              {stats.comments_posted > 0 && (
+                <> <span className="text-neutral-700 mx-1">&middot;</span> <span className="text-neutral-300 font-semibold">{stats.comments_posted.toLocaleString()}</span> comments</>
+              )}
+              {stats.collaborators > 0 && (
+                <> <span className="text-neutral-700 mx-1">&middot;</span> <span className="text-neutral-300 font-semibold">{stats.collaborators.toLocaleString()}</span> collaborators</>
+              )}
+            </p>
+          )}
+          <div className="mt-3 flex items-center justify-center gap-3">
             <AboutButton variant="text" />
             <span className="text-neutral-700">|</span>
             <a
@@ -258,13 +281,6 @@ export default function Home() {
           {loading ? <Spinner context="upload" /> : "Create & Get Share Links"}
         </button>
 
-        <p className="hidden sm:block text-center text-xs text-neutral-600">
-          Also works via API &middot;{" "}
-          <code className="text-indigo-400">
-            curl -X POST mdshare.live/api/documents --data-binary @file.md
-          </code>
-        </p>
-
         {recentDocs.length > 0 && (
           <div className="mt-4 pt-4 border-t border-neutral-900">
             <p className="text-xs text-neutral-600 mb-2">Recent documents</p>
@@ -296,7 +312,7 @@ export default function Home() {
         )}
 
         <p className="text-center text-[11px] text-neutral-700 mt-4">
-          Your markdown, your links, your responsibility. No login. No encryption. No takebacks.
+          Your markdown, your links, your responsibility. No login. No encryption. No takebacks. Documents expire in 90 days.
         </p>
       </div>
     </main>

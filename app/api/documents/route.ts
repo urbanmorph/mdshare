@@ -11,12 +11,23 @@ export const dynamic = "force-dynamic";
  * POST /api/documents — Create a new document.
  * Accepts: text/markdown body or multipart form-data with file field.
  * Returns: admin key + admin URL.
- * Rate limited: 10 creates per minute per IP.
+ * Rate limited: 10 creates per minute, 50 per day per IP.
  */
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown";
-  const limit = checkRateLimit(ip, "create", { max: 10, windowSec: 60 });
-  if (!limit.allowed) return rateLimitResponse(limit);
+
+  // Per-minute burst limit
+  const burstLimit = checkRateLimit(ip, "create", { max: 10, windowSec: 60 });
+  if (!burstLimit.allowed) return rateLimitResponse(burstLimit);
+
+  // Daily budget
+  const dailyLimit = checkRateLimit(ip, "create-daily", { max: 50, windowSec: 86400 });
+  if (!dailyLimit.allowed) {
+    return Response.json(
+      { error: "Daily document creation limit reached (50 per day). Try again tomorrow." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((dailyLimit.resetAt - Date.now()) / 1000)) } }
+    );
+  }
 
   const db = getDB();
   let rawContent: string;
@@ -72,20 +83,21 @@ export async function POST(request: NextRequest) {
   }
   const hash = await contentHash(content);
 
-  // Generate document ID and admin token
   const docId = nanoid(10);
   const adminToken = generateToken("admin");
   const adminTokenHash = await hashToken(adminToken);
   const adminPrefix = tokenPrefix(adminToken);
   const linkId = nanoid(16);
 
-  // Insert document
+  // Default 90-day expiry
+  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+
   await db
     .prepare(
-      `INSERT INTO documents (id, title, content, content_hash)
-       VALUES (?, ?, ?, ?)`
+      `INSERT INTO documents (id, title, content, content_hash, expires_at)
+       VALUES (?, ?, ?, ?, ?)`
     )
-    .bind(docId, title, content, hash)
+    .bind(docId, title, content, hash, expiresAt)
     .run();
 
   // Insert admin link (store raw token so admin can always retrieve URLs)
@@ -104,6 +116,8 @@ export async function POST(request: NextRequest) {
       document_id: docId,
       admin_key: adminToken,
       admin_url: `${baseUrl}/d/${docId}?key=${adminToken}`,
+      expires_at: expiresAt,
+      note: "Document expires in 90 days. Share links may have their own expiry.",
     },
     { status: 201 }
   );

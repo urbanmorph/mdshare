@@ -5,6 +5,7 @@ import type { LinkRow } from "@/lib/db";
 import { resolveToken } from "@/lib/permissions";
 import { generateToken, hashToken, tokenPrefix } from "@/lib/tokens";
 import type { Permission } from "@/lib/tokens";
+import { incrementStat } from "@/lib/stats";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,15 @@ export async function POST(
     )
     .bind(linkId, id, prefix, hash, permission, label, token, expiresAt)
     .run();
+
+  // Count as "shared" if this is the first non-admin link for this doc
+  const linkCount = await db
+    .prepare("SELECT COUNT(*) as cnt FROM links WHERE document_id = ? AND permission != 'admin'")
+    .bind(id)
+    .first<{ cnt: number }>();
+  if (linkCount && linkCount.cnt === 1) {
+    await incrementStat(db, "documents_shared");
+  }
 
   const baseUrl = new URL(request.url).origin;
 

@@ -8,11 +8,21 @@ Documentation: https://mdshare.live/docs/raw
 ## Quick Start
 Upload: POST /api/documents (Content-Type: text/markdown, body: raw markdown)
 Read: GET /api/d/{id}?key={key} (Accept: text/markdown for raw)
-Update: PUT /api/d/{id}?key={edit_key} (Content-Type: text/markdown)
-Links: POST /api/d/{id}/links?key={admin_key} (body: {permission, label})
+Update: PUT /api/d/{id}?key={edit_key} (Content-Type: text/markdown, X-Author: name)
+Links: POST /api/d/{id}/links?key={admin_key} (body: {permission, label, expires_at})
 Comments: POST /api/d/{id}/comments?key={key} (body: {content, author_name, anchor_text})
 Versions: GET /api/d/{id}/versions?key={key}
 Presence: POST /api/d/{id}/presence?key={key} (body: {session_id, name})
 
 ## Permissions
 adm_ = full control | edt_ = read+write | cmt_ = read+comment | viw_ = read only
+
+## Limits
+- Documents expire in 90 days (expires_at in create response)
+- 10 creates per minute, 50 per day per IP
+- 30 updates per minute per IP
+- 20 comments per minute per IP
+- 20 poll requests per minute per IP
+- Max document size: 10MB
+- 429 responses include Retry-After header
+- Expired documents return 410 Gone

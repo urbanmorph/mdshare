@@ -130,11 +130,21 @@ The \`GET /api/d/:id\` response also includes \`last_edited_by\`, \`last_edited_
 
 | Endpoint | Limit |
 |----------|-------|
-| \`POST /api/documents\` | 10 per minute per IP |
+| \`POST /api/documents\` | 10 per minute, 50 per day per IP |
 | \`PUT /api/d/:id\` | 30 per minute per IP |
 | \`POST /api/d/:id/comments\` | 20 per minute per IP |
+| \`POST /api/d/:id/poll\` | 20 per minute per IP |
 
 Rate-limited responses return \`429\` with a \`Retry-After\` header.
+
+---
+
+## Document Expiry
+
+- Documents expire **90 days** after creation by default
+- Expired documents return \`410 Gone\`
+- Share links may have their own expiry (set via \`expires_at\` when creating a link)
+- The \`POST /api/documents\` response includes \`expires_at\` with the expiry date
 
 ---
 
@@ -145,7 +155,8 @@ Rate-limited responses return \`429\` with a \`Retry-After\` header.
 | \`400\` | Invalid content (binary file, empty, too large) |
 | \`403\` | Insufficient permission |
 | \`404\` | Document not found or invalid key |
-| \`429\` | Rate limited |
+| \`410\` | Document has expired |
+| \`429\` | Rate limited (check \`Retry-After\` header) |
 
 ---
 

@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { getDB } from "@/lib/db";
 import { resolveToken, canPerform } from "@/lib/permissions";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { incrementStat } from "@/lib/stats";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,20 @@ export async function POST(
       body.anchor_end ?? null
     )
     .run();
+
+  await incrementStat(db, "comments_posted");
+
+  // Track unique collaborator names
+  const authorName = body.author_name || "Anonymous";
+  if (authorName !== "Anonymous") {
+    const existing = await db
+      .prepare("SELECT COUNT(*) as cnt FROM comments WHERE author_name = ?")
+      .bind(authorName)
+      .first<{ cnt: number }>();
+    if (existing && existing.cnt === 1) {
+      await incrementStat(db, "collaborators");
+    }
+  }
 
   return Response.json({ id: commentId, status: "created" }, { status: 201 });
 }

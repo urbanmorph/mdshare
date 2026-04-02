@@ -2,18 +2,22 @@ import { NextRequest } from "next/server";
 import { getDB } from "@/lib/db";
 import { resolveToken } from "@/lib/permissions";
 import { heartbeat, getPresence } from "@/lib/presence";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/d/:id/poll?key=TOKEN — Combined polling endpoint.
- * Returns document hash, comments, and presence in a single request.
- * Body: { session_id, name } for presence heartbeat.
+ * Rate limited: 20 per minute per IP.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown";
+  const limit = checkRateLimit(ip, "poll", { max: 20, windowSec: 60 });
+  if (!limit.allowed) return rateLimitResponse(limit);
+
   const { id } = await params;
   const key = request.nextUrl.searchParams.get("key");
   if (!key) return Response.json({ error: "Not found" }, { status: 404 });

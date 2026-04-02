@@ -37,6 +37,13 @@ export async function GET(
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
+  // Lazy expiry check
+  const expiresAt = (doc as unknown as { expires_at?: string }).expires_at;
+  if (expiresAt && new Date(expiresAt) < new Date()) {
+    await db.prepare("DELETE FROM documents WHERE id = ?").bind(id).run();
+    return Response.json({ error: "Document has expired" }, { status: 410 });
+  }
+
   const accept = request.headers.get("accept") || "";
 
   // Raw markdown

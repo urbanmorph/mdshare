@@ -29,6 +29,9 @@
       }
     ]
   },
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  },
   "migrations": [
     {
       "tag": "v1",
