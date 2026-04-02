@@ -175,7 +175,7 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
 
           <h2 id="use-with-ai">Use with AI</h2>
 
-          <h3>MCP Setup (coming soon)</h3>
+          <h3>MCP Setup</h3>
           <p>mdshare works as an MCP server with Claude, ChatGPT/Codex, and Gemini CLI.</p>
           <pre><code>npx mdshare-mcp</code></pre>
 
