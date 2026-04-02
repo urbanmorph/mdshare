@@ -48,3 +48,5 @@ supporting-docs/
 .dev.vars
 .wrangler
 .open-next
+mcp/.mcpregistry_github_token
+mcp/.mcpregistry_registry_token
