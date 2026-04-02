@@ -52,8 +52,8 @@ export async function POST(
   // Get comments
   const comments = await db
     .prepare(
-      `SELECT id, author_name, content, anchor_text, anchor_start, anchor_end, resolved, created_at
-       FROM comments WHERE document_id = ? ORDER BY created_at DESC`
+      `SELECT id, author_name, content, anchor_text, anchor_start, anchor_end, resolved, parent_id, created_at
+       FROM comments WHERE document_id = ? ORDER BY created_at ASC`
     )
     .bind(id)
     .all();
