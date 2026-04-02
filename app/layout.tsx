@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   title: "mdshare — Share markdown instantly, free",
   description:
     "Free markdown sharing. Upload, get a link, collaborate. No login, no accounts, no cost.",
+  alternates: {
+    canonical: "https://mdshare.live",
+  },
   openGraph: {
     title: "mdshare — Share markdown instantly, free",
     description:
@@ -23,12 +26,14 @@ export const metadata: Metadata = {
     siteName: "mdshare",
     type: "website",
     url: "https://mdshare.live",
+    images: [{ url: "https://mdshare.live/og.png", width: 1200, height: 630, alt: "mdshare — Share markdown instantly, free" }],
   },
   twitter: {
     card: "summary",
     title: "mdshare — Share markdown instantly, free",
     description:
       "Free markdown sharing. Upload, get a link, collaborate. No login, no accounts, no cost.",
+    images: ["https://mdshare.live/og.png"],
   },
 };
 
