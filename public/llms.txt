@@ -1,9 +1,16 @@
 # mdshare
-> Free markdown sharing. Upload, get a link, collaborate. No login needed.
+> Free markdown sharing with MCP integration. Upload, get a link, collaborate. No login needed.
+
+## MCP Server
+Package: npx mdshare-mcp
+Registry: io.github.sathya-sankaran/mdshare
+Works with: Claude, ChatGPT/Codex, Gemini CLI, Cursor, Windsurf
+Tools: upload_markdown, read_document, update_document, generate_link, list_comments, post_comment, resolve_comment, get_versions
 
 ## API
 Base URL: https://mdshare.live
 Documentation: https://mdshare.live/docs/raw
+MCP setup: https://mdshare.live/docs#use-with-ai
 
 ## Quick Start
 Upload: POST /api/documents (Content-Type: text/markdown, body: raw markdown)
@@ -22,7 +29,6 @@ adm_ = full control | edt_ = read+write | cmt_ = read+comment | viw_ = read only
 - 10 creates per minute, 50 per day per IP
 - 30 updates per minute per IP
 - 20 comments per minute per IP
-- 20 poll requests per minute per IP
 - Max document size: 10MB
 - 429 responses include Retry-After header
 - Expired documents return 410 Gone
