@@ -196,11 +196,11 @@ export default function Home() {
           <h1 className="text-3xl sm:text-4xl font-bold text-white">
             md<span className="text-indigo-400">share</span>
           </h1>
-          <p className="mt-2 text-neutral-500">
+          <p className="mt-2 text-neutral-300">
             Share markdown instantly. No login required.
           </p>
           {stats && (stats.documents_shared > 0 || stats.comments_posted > 0) && (
-            <p className="mt-4 text-sm text-neutral-500 tracking-wide">
+            <p className="mt-4 text-sm text-neutral-400 tracking-wide">
               <span className="text-neutral-300 font-semibold">{stats.documents_shared.toLocaleString()}</span> documents shared
               {stats.comments_posted > 0 && (
                 <> <span className="text-neutral-700 mx-1">&middot;</span> <span className="text-neutral-300 font-semibold">{stats.comments_posted.toLocaleString()}</span> comments</>
@@ -237,8 +237,8 @@ export default function Home() {
               : "border-neutral-700 hover:border-neutral-500"
           }`}
         >
-          <div className="text-3xl mb-3 text-neutral-600">+</div>
-          <p className="text-neutral-400">
+          <div className="text-3xl mb-3 text-neutral-400">+</div>
+          <p className="text-neutral-300">
             Drop a .md file here, or click to browse
           </p>
           <p className="text-xs text-neutral-600 mt-1">
@@ -291,7 +291,7 @@ export default function Home() {
                   href={`/d/${doc.id}?key=${doc.key}`}
                   className="flex items-center justify-between px-3 py-2 rounded-lg bg-neutral-900/50 hover:bg-neutral-800/50 transition-colors group"
                 >
-                  <span className="text-sm text-neutral-400 group-hover:text-neutral-200 truncate">
+                  <span className="text-sm text-neutral-300 group-hover:text-white truncate">
                     {doc.title}
                   </span>
                   <span className={`text-[11px] px-1.5 py-0.5 rounded uppercase font-semibold shrink-0 ml-2 ${
