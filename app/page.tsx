@@ -197,7 +197,7 @@ export default function Home() {
             md<span className="text-indigo-400">share</span>
           </h1>
           <p className="mt-2 text-neutral-300">
-            Share markdown instantly. No login required.
+            Share markdown instantly. Free. No login required.
           </p>
           {stats && (stats.documents_shared > 0 || stats.comments_posted > 0) && (
             <p className="mt-4 text-sm text-neutral-400 tracking-wide">
