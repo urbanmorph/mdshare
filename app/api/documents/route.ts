@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  * Rate limited: 10 creates per minute, 50 per day per IP.
  */
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown";
+  const ip = request.headers.get("cf-connecting-ip") || "unknown";
 
   // Per-minute burst limit
   const burstLimit = checkRateLimit(ip, "create", { max: 10, windowSec: 60 });

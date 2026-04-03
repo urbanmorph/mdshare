@@ -43,5 +43,11 @@ export async function verifyToken(
   storedHash: string
 ): Promise<boolean> {
   const hash = await hashToken(token);
-  return hash === storedHash;
+  // Constant-time comparison to prevent timing attacks
+  if (hash.length !== storedHash.length) return false;
+  let result = 0;
+  for (let i = 0; i < hash.length; i++) {
+    result |= hash.charCodeAt(i) ^ storedHash.charCodeAt(i);
+  }
+  return result === 0;
 }

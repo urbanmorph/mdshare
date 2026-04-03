@@ -14,7 +14,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown";
+  const ip = request.headers.get("cf-connecting-ip") || "unknown";
   const limit = checkRateLimit(ip, "poll", { max: 20, windowSec: 60 });
   if (!limit.allowed) return rateLimitResponse(limit);
 
