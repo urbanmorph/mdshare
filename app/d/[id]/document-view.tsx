@@ -136,7 +136,9 @@ export function DocumentView({
 
   useEffect(() => {
     poll();
-    const interval = setInterval(poll, 15000);
+    const interval = setInterval(() => {
+      if (!document.hidden) poll();
+    }, 15000);
     return () => clearInterval(interval);
   }, [poll]);
 
