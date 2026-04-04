@@ -249,6 +249,25 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
           <pre><code>{`Read https://mdshare.live/docs/raw to learn the mdshare API,
 then upload this markdown and give me a share link.`}</code></pre>
           <p>Works with Claude, ChatGPT, Gemini, Copilot, or any AI that can make HTTP calls.</p>
+
+          <hr />
+
+          <h2 id="vscode">VS Code Extension</h2>
+          <p>Share markdown files directly from VS Code. Right-click any <code>.md</code> file or select text and share it instantly.</p>
+
+          <h3>Install</h3>
+          <ol className="list-decimal pl-5 space-y-1 text-sm text-neutral-300">
+            <li>Download <a href="/mdshare-vscode.vsix" className="text-indigo-400 hover:text-indigo-300 underline">mdshare-vscode.vsix</a></li>
+            <li>In VS Code, press <code>Cmd+Shift+P</code> (or <code>Ctrl+Shift+P</code>)</li>
+            <li>Type <strong>Install from VSIX</strong> and select the downloaded file</li>
+          </ol>
+
+          <h3>Usage</h3>
+          <ul className="list-disc pl-5 space-y-1 text-sm text-neutral-300">
+            <li><strong>Share a file:</strong> Right-click a <code>.md</code> file in the Explorer &rarr; &ldquo;Share on mdshare&rdquo;</li>
+            <li><strong>Share a selection:</strong> Select text in any editor &rarr; right-click &rarr; &ldquo;Share Selection on mdshare&rdquo;</li>
+          </ul>
+          <p className="text-sm text-neutral-400">The admin URL is automatically copied to your clipboard.</p>
         </div>
       </main>
     </div>

@@ -226,6 +226,13 @@ export default function Home() {
             >
               Use with AI
             </a>
+            <span className="text-neutral-700">|</span>
+            <a
+              href="/docs#vscode"
+              className="text-sm text-indigo-400 hover:text-indigo-300 underline underline-offset-4 decoration-indigo-400/30 hover:decoration-indigo-300/50 transition-colors"
+            >
+              VS Code
+            </a>
           </div>
         </div>
 
