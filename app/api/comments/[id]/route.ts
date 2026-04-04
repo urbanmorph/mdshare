@@ -43,10 +43,11 @@ export async function PATCH(
   const body = (await request.json()) as { resolved?: boolean };
 
   if (body.resolved !== undefined) {
-    await db
-      .prepare("UPDATE comments SET resolved = ? WHERE id = ?")
-      .bind(body.resolved ? 1 : 0, commentId)
-      .run();
+    const resolvedVal = body.resolved ? 1 : 0;
+    await db.batch([
+      db.prepare("UPDATE comments SET resolved = ? WHERE id = ?").bind(resolvedVal, commentId),
+      db.prepare("UPDATE comments SET resolved = ? WHERE parent_id = ?").bind(resolvedVal, commentId),
+    ]);
   }
 
   return Response.json({ status: "updated" });
