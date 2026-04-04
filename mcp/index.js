@@ -58,7 +58,7 @@ const TOOLS = [
       type: "object",
       properties: {
         document_id: { type: "string", description: "Document ID" },
-        admin_key: { type: "string", description: "Admin key" },
+        key: { type: "string", description: "Admin key" },
         permission: {
           type: "string",
           enum: ["view", "edit", "comment"],
@@ -66,7 +66,7 @@ const TOOLS = [
         },
         label: { type: "string", description: "Optional label for the link" },
       },
-      required: ["document_id", "admin_key", "permission"],
+      required: ["document_id", "key", "permission"],
     },
   },
   {
@@ -175,7 +175,7 @@ async function handleTool(name, args) {
 
     case "generate_link": {
       const { data } = await callApi(
-        `/api/d/${args.document_id}/links?key=${args.admin_key}`,
+        `/api/d/${args.document_id}/links?key=${args.key}`,
         {
           method: "POST",
           body: JSON.stringify({
