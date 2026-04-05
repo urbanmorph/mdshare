@@ -27,6 +27,7 @@ interface TiptapEditorProps {
   className?: string;
   lightMode?: boolean;
   onToggleLight?: () => void;
+  isAdmin?: boolean;
 }
 
 export function TiptapEditor({
@@ -38,6 +39,7 @@ export function TiptapEditor({
   className = "",
   lightMode,
   onToggleLight,
+  isAdmin,
 }: TiptapEditorProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -132,7 +134,7 @@ export function TiptapEditor({
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {editable && <Toolbar editor={editor} lightMode={lightMode} onToggleLight={onToggleLight} />}
+      {editable && <Toolbar editor={editor} lightMode={lightMode} onToggleLight={onToggleLight} isAdmin={isAdmin} />}
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6" id="editor-scroll-container">
         <EditorContent editor={editor} />
       </div>

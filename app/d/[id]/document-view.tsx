@@ -60,6 +60,17 @@ export function DocumentView({
   }, []);
 
   useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "j") {
+        e.preventDefault();
+        setLightEditor((v) => !v);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
+
+  useEffect(() => {
     saveRecentDoc({
       id: doc.id,
       title: doc.title,
@@ -360,6 +371,7 @@ export function DocumentView({
               activeCommentId={activeCommentId}
               lightMode={lightEditor}
               onToggleLight={() => setLightEditor((v) => !v)}
+              isAdmin={permission === "admin"}
             />
           ) : (
             <MarkdownViewer content={liveContent} />

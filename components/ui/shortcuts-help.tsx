@@ -17,6 +17,7 @@ const SHORTCUTS = [
   { keys: `${mod}+Shift+Z`, action: "Redo" },
   { keys: `${mod}+\\`, action: "Toggle comments" },
   { keys: `${mod}+D`, action: "Download .md" },
+  { keys: `${mod}+Shift+J`, action: "Toggle light/dark editor" },
 ];
 
 const ADMIN_SHORTCUTS = [
