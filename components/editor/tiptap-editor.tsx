@@ -48,6 +48,7 @@ export function TiptapEditor({
     extensions: [
       StarterKit.configure({
         codeBlock: false,
+        link: false,
       }),
       CodeBlockLowlight.configure({
         lowlight,
