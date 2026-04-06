@@ -14,8 +14,17 @@ export class DocumentWebSocket extends DurableObject {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
-    // Only handle WebSocket upgrades
+    // Non-WebSocket: broadcast an update to all connected clients (called by API routes)
     if (request.headers.get("Upgrade") !== "websocket") {
+      if (request.method === "POST" && url.pathname.endsWith("/broadcast")) {
+        const data = await request.text();
+        for (const conn of this.ctx.getWebSockets()) {
+          if (conn.readyState === WebSocket.OPEN) {
+            conn.send(data);
+          }
+        }
+        return new Response("ok");
+      }
       return new Response("Expected WebSocket", { status: 426 });
     }
 

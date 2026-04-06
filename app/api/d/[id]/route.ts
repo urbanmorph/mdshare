@@ -5,6 +5,7 @@ import { resolveToken, canPerform } from "@/lib/permissions";
 import { sanitizeMarkdown, contentHash } from "@/lib/sanitize";
 import { nanoid } from "nanoid";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { broadcastUpdate } from "@/lib/broadcast";
 
 export const dynamic = "force-dynamic";
 
@@ -171,6 +172,9 @@ export async function PUT(
       .run();
   }
 
+  // Notify connected WebSocket clients
+  await broadcastUpdate(id, content, hash);
+
   return Response.json({ status: "updated", content_hash: hash });
 }
 
@@ -301,6 +305,9 @@ export async function PATCH(
       .bind(headingMatch[1].trim(), id)
       .run();
   }
+
+  // Notify connected WebSocket clients
+  await broadcastUpdate(id, sanitized, hash);
 
   return Response.json({ applied, operations: results, content_hash: hash });
 }
