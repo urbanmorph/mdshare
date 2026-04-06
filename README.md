@@ -2,40 +2,16 @@
 
 Share markdown instantly. Free. No login required.
 
-**Live:** [mdshare.live](https://mdshare.live) | **API Docs:** [mdshare.live/docs](https://mdshare.live/docs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![MCP](https://img.shields.io/npm/v/mdshare-mcp?label=MCP&color=indigo)](https://www.npmjs.com/package/mdshare-mcp)
 
----
+**[mdshare.live](https://mdshare.live)** | **[API Docs](https://mdshare.live/docs)** | **[VS Code](https://mdshare.live/docs#vscode)** | **[Obsidian](https://mdshare.live/docs#obsidian)**
 
-## What is mdshare?
-
-Upload a markdown file, get shareable links with different permissions, collaborate in a WYSIWYG editor. Zero accounts, zero setup. Works from the browser, terminal, or any AI chatbot.
-
-## Features
-
-- **Zero login** -- everything is link-based, no accounts needed
-- **Four permission levels** -- Admin, Edit, Comment, View -- each with its own shareable link
-- **WYSIWYG editor** -- rich text editing with formatting toolbar, tables, code blocks
-- **Inline comments** -- select text, leave comments anchored to specific sections with highlights
-- **Live presence** -- see who's currently viewing the document
-- **Real-time updates** -- WebSocket sync across all connected browsers, tab title flashes on updates
-- **Display names** -- set once, used for comments, edits, and presence
-- **API & AI-friendly** -- full REST API, works with curl and AI chatbots
-- **Content sanitization** -- XSS protection, binary file rejection, protocol whitelist
-- **Rate limiting** -- abuse prevention on all write endpoints
-- **Link management** -- revoke links instantly, optional expiration dates, 50-link cap per document
-- **Recent documents** -- quickly access previously visited docs from the landing page
-- **VS Code & Obsidian plugins** -- share markdown directly from your editor
-- **Keyboard shortcuts** -- Cmd+B/I/E for formatting, Cmd+K for links, Cmd+\\ for comments, Cmd+D to download
-- **Mobile responsive** -- touch-friendly, collapsible panels, works on phones and tablets
-- **Rich link previews** -- Open Graph tags for Slack, WhatsApp, and social media
+![mdshare editor](public/screenshot.png)
 
 ## Quick Start
 
-### Upload via browser
-
-Go to [mdshare.live](https://mdshare.live), paste or drag-drop a `.md` file, and get your share links.
-
-### Upload via curl
+Paste markdown at [mdshare.live](https://mdshare.live), or upload via curl:
 
 ```bash
 curl -X POST https://mdshare.live/api/documents \
@@ -43,56 +19,27 @@ curl -X POST https://mdshare.live/api/documents \
   --data-binary @your-file.md
 ```
 
-Response:
-```json
-{
-  "document_id": "abc123",
-  "admin_key": "adm_xK9mQ4r8...",
-  "admin_url": "https://mdshare.live/d/abc123?key=adm_xK9mQ4r8..."
-}
-```
+You get back an admin URL. Share it, or generate links with different permissions.
 
-### Read a document
+[Full API documentation](https://mdshare.live/docs)
 
-```bash
-curl -H "Accept: text/markdown" \
-  "https://mdshare.live/api/d/{id}?key={key}"
-```
+## Features
 
-### Update a document
+- **Four permission levels** -- Admin, Edit, Comment, View -- each with its own shareable link
+- **WYSIWYG editor** -- formatting toolbar, tables, code blocks, keyboard shortcuts
+- **Inline comments** -- anchor comments to specific text, reply, and resolve
+- **Real-time sync** -- WebSocket collaboration, live presence indicators
+- **Link management** -- revoke links instantly, optional expiry, 50-link cap per document
+- **VS Code & Obsidian plugins** -- share markdown directly from your editor
+- **API & MCP** -- REST API + MCP server for Claude, ChatGPT, Gemini, Cursor, and Windsurf
+
+## MCP Server
 
 ```bash
-curl -X PUT "https://mdshare.live/api/d/{id}?key={edit_or_admin_key}" \
-  -H "Content-Type: text/markdown" \
-  --data-binary @updated.md
+npx mdshare-mcp
 ```
 
-### Generate a share link
-
-```bash
-curl -X POST "https://mdshare.live/api/d/{id}/links?key={admin_key}" \
-  -H "Content-Type: application/json" \
-  -d '{"permission": "edit", "label": "for-team"}'
-```
-
-### View edit history
-
-```bash
-curl "https://mdshare.live/api/d/{id}/versions?key={key}"
-```
-
-Returns who edited, when, and via what (browser/api). The main GET endpoint also includes `last_edited_by` for quick checks.
-
-## Permissions
-
-| Key prefix | Level | Can do |
-|-----------|-------|--------|
-| `adm_` | Admin | Full control + manage links + delete |
-| `edt_` | Edit | Read + write + comment |
-| `cmt_` | Comment | Read + add comments |
-| `viw_` | View | Read only |
-
-Links are freely forwardable. The admin key is the master key -- save it.
+Say *"upload this markdown to mdshare"* in any MCP-compatible AI tool. [Setup guide](https://mdshare.live/docs#use-with-ai)
 
 ## Tech Stack
 
@@ -123,23 +70,9 @@ npx wrangler d1 migrations apply mdshare-db --local
 npm run dev -- -p 3737
 ```
 
-## Deployment
+## Contributing
 
-Pushes to `main` auto-deploy via GitHub Actions to Cloudflare Workers.
-
-Manual deploy:
-```bash
-CLOUDFLARE_API_TOKEN=your_token npx opennextjs-cloudflare build && npx opennextjs-cloudflare deploy
-```
-
-## API Documentation
-
-Full API docs at [mdshare.live/docs](https://mdshare.live/docs).
-
-Raw markdown version:
-```bash
-curl https://mdshare.live/docs/raw
-```
+Issues and PRs welcome. Please open an issue first to discuss significant changes.
 
 ## License
 
