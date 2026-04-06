@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     images: [{ url: "https://mdshare.live/og.png", width: 1200, height: 630, alt: "mdshare — Share markdown instantly, free" }],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "mdshare — Share markdown instantly, free",
     description:
       "Free markdown sharing. Upload, get a link, collaborate. No login, no accounts, no cost.",
@@ -47,6 +47,9 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
+      <head>
+        <meta name="theme-color" content="#0a0a0a" />
+      </head>
       <body className="min-h-full flex flex-col bg-neutral-950 text-neutral-200">
         <script
           type="application/ld+json"

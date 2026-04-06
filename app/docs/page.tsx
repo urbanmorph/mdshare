@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "API & MCP Documentation — mdshare",
   description: "REST API and MCP server for mdshare. Use with Claude, ChatGPT, Gemini, Cursor, Windsurf, or curl.",
+  alternates: {
+    canonical: "https://mdshare.live/docs",
+  },
   openGraph: {
     title: "API & MCP Documentation — mdshare",
     description: "REST API and MCP server for mdshare. Use with Claude, ChatGPT, Gemini, Cursor, Windsurf, or curl.",
