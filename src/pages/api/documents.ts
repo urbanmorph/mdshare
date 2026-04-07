@@ -8,6 +8,7 @@ import { checkRateLimit, rateLimitResponse } from "../../../lib/rate-limit";
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request }) => {
+  const t0 = Date.now();
   const ip = request.headers.get("cf-connecting-ip") || "unknown";
 
   const burstLimit = checkRateLimit(ip, "create", { max: 10, windowSec: 60 });
@@ -60,6 +61,7 @@ export const POST: APIRoute = async ({ request }) => {
     title = headingMatch[1].trim();
   }
 
+  const tSanitize = Date.now();
   let content: string;
   try {
     content = await sanitizeMarkdown(rawContent);
@@ -67,6 +69,7 @@ export const POST: APIRoute = async ({ request }) => {
     return Response.json({ error: (err as Error).message }, { status: 400 });
   }
   const hash = await contentHash(content);
+  const sanitizeMs = Date.now() - tSanitize;
 
   const docId = nanoid(10);
   const adminToken = generateToken("admin");
@@ -76,23 +79,25 @@ export const POST: APIRoute = async ({ request }) => {
 
   const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
-  await db
-    .prepare(
-      `INSERT INTO documents (id, title, content, content_hash, expires_at)
-       VALUES (?, ?, ?, ?, ?)`
-    )
-    .bind(docId, title, content, hash, expiresAt)
-    .run();
-
-  await db
-    .prepare(
-      `INSERT INTO links (id, document_id, token_prefix, token_hash, permission, label, token)
-       VALUES (?, ?, ?, ?, 'admin', 'admin', ?)`
-    )
-    .bind(linkId, docId, adminPrefix, adminTokenHash, adminToken)
-    .run();
+  const tDb = Date.now();
+  await db.batch([
+    db
+      .prepare(
+        `INSERT INTO documents (id, title, content, content_hash, expires_at)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .bind(docId, title, content, hash, expiresAt),
+    db
+      .prepare(
+        `INSERT INTO links (id, document_id, token_prefix, token_hash, permission, label, token)
+         VALUES (?, ?, ?, ?, 'admin', 'admin', ?)`
+      )
+      .bind(linkId, docId, adminPrefix, adminTokenHash, adminToken),
+  ]);
+  const dbMs = Date.now() - tDb;
 
   const baseUrl = new URL(request.url).origin;
+  const totalMs = Date.now() - t0;
 
   return Response.json(
     {
@@ -100,8 +105,14 @@ export const POST: APIRoute = async ({ request }) => {
       admin_key: adminToken,
       admin_url: `${baseUrl}/d/${docId}?key=${adminToken}`,
       expires_at: expiresAt,
+      processing_ms: totalMs,
       note: "Document expires in 90 days. Share links may have their own expiry.",
     },
-    { status: 201 }
+    {
+      status: 201,
+      headers: {
+        "Server-Timing": `sanitize;dur=${sanitizeMs}, db;dur=${dbMs}, total;dur=${totalMs}`,
+      },
+    }
   );
 };

@@ -6,6 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { readFile, writeFile } from "node:fs/promises";
 
 const BASE_URL = "https://mdshare.live";
 
@@ -13,24 +14,34 @@ const TOOLS = [
   {
     name: "upload_markdown",
     description:
-      "Upload markdown content to mdshare and get a shareable admin URL. Returns document_id, admin_key, admin_url, and expiry date.",
+      "Upload markdown to mdshare and get a shareable admin URL. PREFER file_path when uploading from a local file — it reads directly from disk without sending the content through this conversation, which is dramatically faster for files larger than ~1KB. Use content only for short snippets typed inline.",
     inputSchema: {
       type: "object",
       properties: {
-        content: { type: "string", description: "Markdown content to upload" },
+        file_path: {
+          type: "string",
+          description: "Absolute path to a local markdown file. PREFERRED for any file already on disk — bypasses inline content transmission entirely.",
+        },
+        content: {
+          type: "string",
+          description: "Inline markdown content. Only use this for short snippets composed in the conversation. For files on disk, use file_path instead.",
+        },
       },
-      required: ["content"],
     },
   },
   {
     name: "read_document",
     description:
-      "Read a markdown document from mdshare. Returns the content, title, last editor, and permission level.",
+      "Read a markdown document from mdshare. Returns the content, title, last editor, and permission level. If output_path is provided, the content is written to that local file path and a small summary is returned instead of the full content — much faster for large documents.",
     inputSchema: {
       type: "object",
       properties: {
         document_id: { type: "string", description: "Document ID" },
         key: { type: "string", description: "Access key (admin, edit, comment, or view)" },
+        output_path: {
+          type: "string",
+          description: "Optional. Absolute local file path to write the document content to. When provided, the response is a small summary (saved_to, bytes, title) instead of the full content — use this for large documents to avoid transmitting the content through this conversation.",
+        },
       },
       required: ["document_id", "key"],
     },
@@ -201,10 +212,18 @@ async function callApi(path, options = {}) {
 async function handleTool(name, args) {
   switch (name) {
     case "upload_markdown": {
+      let body;
+      if (args.file_path) {
+        body = await readFile(args.file_path, "utf-8");
+      } else if (args.content) {
+        body = args.content;
+      } else {
+        return JSON.stringify({ error: "Must provide either file_path or content" });
+      }
       const { data } = await callApi("/api/documents", {
         method: "POST",
         contentType: "text/markdown",
-        body: args.content,
+        body,
       });
       return JSON.stringify(data, null, 2);
     }
@@ -214,7 +233,15 @@ async function handleTool(name, args) {
         `/api/d/${args.document_id}?key=${args.key}`,
         { headers: { Accept: "text/markdown" }, contentType: "text/plain" }
       );
-      return typeof data === "string" ? data : JSON.stringify(data, null, 2);
+      const content = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+      if (args.output_path && typeof data === "string") {
+        await writeFile(args.output_path, content, "utf-8");
+        return JSON.stringify({
+          saved_to: args.output_path,
+          bytes: Buffer.byteLength(content, "utf-8"),
+        }, null, 2);
+      }
+      return content;
     }
 
     case "update_document": {
@@ -315,7 +342,7 @@ async function handleTool(name, args) {
 
 // Start server
 const server = new Server(
-  { name: "mdshare", version: "1.1.0" },
+  { name: "mdshare", version: "1.2.0" },
   { capabilities: { tools: {} } }
 );
 

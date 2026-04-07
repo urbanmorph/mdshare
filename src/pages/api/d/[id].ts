@@ -75,6 +75,7 @@ export const GET: APIRoute = async ({ request, params }) => {
 };
 
 export const PUT: APIRoute = async ({ request, params }) => {
+  const t0 = Date.now();
   const ip = request.headers.get("cf-connecting-ip") || "unknown";
   const limit = checkRateLimit(ip, "update", { max: 30, windowSec: 60 });
   if (!limit.allowed) return rateLimitResponse(limit);
@@ -101,6 +102,7 @@ export const PUT: APIRoute = async ({ request, params }) => {
     return Response.json({ error: "Empty content" }, { status: 400 });
   }
 
+  const tSanitize = Date.now();
   let content: string;
   try {
     content = await sanitizeMarkdown(rawContent);
@@ -108,6 +110,7 @@ export const PUT: APIRoute = async ({ request, params }) => {
     return Response.json({ error: (err as Error).message }, { status: 400 });
   }
   const hash = await contentHash(content);
+  const sanitizeMs = Date.now() - tSanitize;
 
   const current = await db
     .prepare("SELECT content, content_hash FROM documents WHERE id = ?")
@@ -119,13 +122,14 @@ export const PUT: APIRoute = async ({ request, params }) => {
   }
 
   if (current.content_hash === hash) {
-    return Response.json({ status: "unchanged" });
+    return Response.json({ status: "unchanged", processing_ms: Date.now() - t0 });
   }
 
   const versionId = nanoid(16);
   const editedVia = request.headers.get("x-edited-via") || "api";
   const editedBy = request.headers.get("x-author") || "Anonymous";
 
+  const tDb = Date.now();
   await db.batch([
     db
       .prepare(
@@ -140,6 +144,7 @@ export const PUT: APIRoute = async ({ request, params }) => {
       )
       .bind(content, hash, id),
   ]);
+  const dbMs = Date.now() - tDb;
 
   const headingMatch = content.match(/^#\s+(.+)$/m);
   if (headingMatch) {
@@ -151,10 +156,19 @@ export const PUT: APIRoute = async ({ request, params }) => {
 
   await broadcastUpdate(id, content, hash);
 
-  return Response.json({ status: "updated", content_hash: hash });
+  const totalMs = Date.now() - t0;
+  return Response.json(
+    { status: "updated", content_hash: hash, processing_ms: totalMs },
+    {
+      headers: {
+        "Server-Timing": `sanitize;dur=${sanitizeMs}, db;dur=${dbMs}, total;dur=${totalMs}`,
+      },
+    }
+  );
 };
 
 export const PATCH: APIRoute = async ({ request, params }) => {
+  const t0 = Date.now();
   const ip = request.headers.get("cf-connecting-ip") || "unknown";
   const limit = checkRateLimit(ip, "update", { max: 30, windowSec: 60 });
   if (!limit.allowed) return rateLimitResponse(limit);
@@ -235,6 +249,7 @@ export const PATCH: APIRoute = async ({ request, params }) => {
     return Response.json({ applied: 0, operations: results }, { status: 422 });
   }
 
+  const tSanitize = Date.now();
   let sanitized: string;
   try {
     sanitized = await sanitizeMarkdown(content);
@@ -242,15 +257,17 @@ export const PATCH: APIRoute = async ({ request, params }) => {
     return Response.json({ error: (err as Error).message }, { status: 400 });
   }
   const hash = await contentHash(sanitized);
+  const sanitizeMs = Date.now() - tSanitize;
 
   if (current.content_hash === hash) {
-    return Response.json({ applied: 0, operations: results, status: "unchanged" });
+    return Response.json({ applied: 0, operations: results, status: "unchanged", processing_ms: Date.now() - t0 });
   }
 
   const versionId = nanoid(16);
   const editedVia = request.headers.get("x-edited-via") || "api";
   const editedBy = body.author || request.headers.get("x-author") || "Anonymous";
 
+  const tDb = Date.now();
   await db.batch([
     db
       .prepare(
@@ -265,6 +282,7 @@ export const PATCH: APIRoute = async ({ request, params }) => {
       )
       .bind(sanitized, hash, id),
   ]);
+  const dbMs = Date.now() - tDb;
 
   const headingMatch = sanitized.match(/^#\s+(.+)$/m);
   if (headingMatch) {
@@ -276,7 +294,15 @@ export const PATCH: APIRoute = async ({ request, params }) => {
 
   await broadcastUpdate(id, sanitized, hash);
 
-  return Response.json({ applied, operations: results, content_hash: hash });
+  const totalMs = Date.now() - t0;
+  return Response.json(
+    { applied, operations: results, content_hash: hash, processing_ms: totalMs },
+    {
+      headers: {
+        "Server-Timing": `sanitize;dur=${sanitizeMs}, db;dur=${dbMs}, total;dur=${totalMs}`,
+      },
+    }
+  );
 };
 
 export const DELETE: APIRoute = async ({ request, params }) => {
