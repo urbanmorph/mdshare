@@ -371,7 +371,7 @@ export function DocumentView({
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {/* Editor — always rendered, flex-1 */}
         <div className={`flex flex-col flex-1 min-h-0 min-w-0 editor-area${lightEditor ? " editor-light" : ""}`}>
-          {editable ? (
+          {editable || permission === "comment" ? (
             <TiptapEditor
               content={liveContent}
               editable={editable}

@@ -4,7 +4,12 @@ import react from "@astrojs/react";
 
 export default defineConfig({
   output: "server",
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    workerEntryPoint: {
+      path: "src/worker.ts",
+      namedExports: ["DocumentWebSocket"],
+    },
+  }),
   trailingSlash: "never",
   build: {
     format: "file",
