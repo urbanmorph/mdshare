@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Spinner } from "@/components/ui/spinner";
@@ -195,7 +194,14 @@ export function CommentSidebar({
                   ref={(el) => { commentRefs.current[comment.id] = el; }}
                   onClick={() => {
                     if (comment.anchor_text) {
-                      onActiveCommentChange(isActive ? null : comment.id);
+                      onActiveCommentChange(comment.id);
+                      // Always scroll, even if already active
+                      const el = document.querySelector(
+                        `[data-comment-id="${comment.id}"]`
+                      );
+                      if (el) {
+                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }
                     }
                   }}
                   className={`rounded-lg p-3 transition-colors ${

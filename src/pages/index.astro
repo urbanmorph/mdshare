@@ -1,0 +1,10 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Home from "../components/Home";
+
+export const prerender = true;
+---
+
+<Layout canonical="https://mdshare.live">
+  <Home client:load />
+</Layout>
