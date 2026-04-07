@@ -4,7 +4,7 @@
 import type { SSRManifest } from "astro";
 import { App } from "astro/app";
 import { handle } from "@astrojs/cloudflare/handler";
-import { hashToken, tokenPrefix, verifyToken } from "../lib/tokens";
+import { tokenPrefix, verifyToken } from "../lib/tokens";
 
 // Re-export the Durable Object class
 import { DocumentWebSocket } from "../worker/document-ws";
@@ -120,24 +120,19 @@ export function createExports(manifest: SSRManifest) {
       },
 
       async scheduled(
-        event: ScheduledEvent,
+        _event: ScheduledEvent,
         env: Env,
         _ctx: ExecutionContext
       ) {
-        if (event.cron === "0 3 * * *") {
-          // Daily cron: clean up expired documents
-          const result = await env.DB
-            .prepare(
-              "DELETE FROM documents WHERE expires_at IS NOT NULL AND expires_at < datetime('now')"
-            )
-            .run();
-          console.log(
-            `Cron cleanup: deleted ${result.meta?.changes || 0} expired documents`
-          );
-        } else {
-          // Every 5 minutes: keep worker warm
-          console.log("Keep-warm ping");
-        }
+        // Daily cron: clean up expired documents
+        const result = await env.DB
+          .prepare(
+            "DELETE FROM documents WHERE expires_at IS NOT NULL AND expires_at < datetime('now')"
+          )
+          .run();
+        console.log(
+          `Cron cleanup: deleted ${result.meta?.changes || 0} expired documents`
+        );
       },
     } satisfies ExportedHandler<Env>,
     DocumentWebSocket,

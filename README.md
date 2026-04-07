@@ -45,8 +45,9 @@ Say *"upload this markdown to mdshare"* in any MCP-compatible AI tool. [Setup gu
 
 | Component | Technology |
 |-----------|-----------|
-| Framework | Next.js 16 (App Router) |
-| Hosting | Cloudflare Workers (via OpenNext) |
+| Framework | Astro 5 |
+| UI | React (as Astro islands) |
+| Hosting | Cloudflare Workers (native) |
 | Database | Cloudflare D1 (SQLite) |
 | Real-time | Cloudflare Durable Objects (WebSocket) |
 | Editor | Tiptap + tiptap-markdown |
