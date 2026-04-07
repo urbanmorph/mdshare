@@ -27,20 +27,34 @@ mdshare is deliberately minimal. The core value is: upload markdown, get a link,
 
 ## Tech Stack
 
-- Next.js 16 on Cloudflare Workers (via OpenNext)
+- Astro 5 on Cloudflare Workers (native, via `@astrojs/cloudflare` adapter)
+- React 19 as Astro islands (`client:load`, `client:only="react"`)
 - Cloudflare D1 (SQLite), Durable Objects (WebSocket)
 - Tiptap editor with tiptap-markdown
 - Tailwind CSS v4
-- CI/CD: GitHub Actions → auto-deploy on push to main
+- CI/CD: GitHub Actions → `astro build && wrangler deploy` on push to main
 
 ## Key Files
 
 - `lib/sanitize.ts` — content sanitization pipeline (security-critical)
 - `lib/tokens.ts` — token generation and verification
 - `lib/permissions.ts` — permission resolution from tokens
-- `app/api/` — all REST API routes
-- `app/d/[id]/document-view.tsx` — main document page (largest component)
+- `lib/db.ts` — D1 access via `cloudflare:workers` env
+- `lib/db-types.ts` — D1 row types (separated so client code can import without runtime)
+- `lib/broadcast.ts` — DO broadcast helper called from PUT/PATCH
+- `src/pages/` — Astro pages (file-based routing)
+- `src/pages/api/` — all REST API routes (Astro endpoints)
+- `src/pages/d/[id].astro` — document SSR page (dynamic OG tags from D1)
+- `src/components/DocumentView.tsx` — main editor component (React island, largest)
+- `src/worker.ts` — custom worker entry with WebSocket bypass + DO export + cron
+- `src/layouts/Layout.astro` — HTML shell, meta tags, JSON-LD, fonts
+- `worker/document-ws.ts` — Durable Object class for WebSocket sync
 - `components/editor/` — Tiptap editor, toolbar, comments, highlights
+- `public/.assetsignore` — prevents wrangler from uploading `_worker.js` as an asset
+
+## Versions are pinned
+
+`astro`, `@astrojs/cloudflare`, and `@astrojs/react` are pinned to exact versions in `package.json` (no `^`) to prevent accidental upgrades. Astro 6 has a known picomatch CJS bug with the Cloudflare adapter — do NOT upgrade to Astro 6 until it's resolved.
 
 ## Cloudflare Token
 
