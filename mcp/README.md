@@ -34,8 +34,8 @@ Config file locations:
 
 | Tool | What it does |
 |------|-------------|
-| `upload_markdown` | Upload markdown, get shareable admin URL |
-| `read_document` | Read a document by ID + key |
+| `upload_markdown` | Upload markdown by `file_path` (preferred for files on disk) or inline `content` |
+| `read_document` | Read a document by ID + key, optionally save to `output_path` on disk |
 | `update_document` | Update content (edit/admin key) |
 | `patch_document` | Find/replace operations without rewriting the full document |
 | `generate_link` | Create view/edit/comment link (admin key) |
@@ -49,12 +49,17 @@ Config file locations:
 ## What to say
 
 - "Upload my-notes.md to mdshare and give me an edit link"
+- "Save this mdshare document to /tmp/notes.md"
 - "Read this mdshare document and summarize the comments"
 - "Incorporate the feedback and resolve the comments"
 - "Share this markdown with view-only access"
 - "Revoke the edit link I shared earlier"
 - "List all links for this document"
 - "Who edited this document last?"
+
+## Tip: file_path beats inline content
+
+For files already on disk, the tool reads them directly via `file_path` rather than echoing every byte through the conversation. This is dramatically faster for AI workflows because the LLM doesn't need to generate the entire file as a tool-call parameter. Same applies in reverse for downloads via `output_path`.
 
 ## Without MCP
 

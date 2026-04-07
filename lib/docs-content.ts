@@ -171,4 +171,5 @@ Rate-limited responses return \`429\` with a \`Retry-After\` header.
 - Max document size: 10MB
 - All content should be treated as user-generated
 - API responses include \`X-Content-Source: user-generated\` header
+- Write endpoints (POST/PUT/PATCH) return \`Server-Timing\` headers and a \`processing_ms\` field for latency tracking
 `;

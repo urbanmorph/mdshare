@@ -3,12 +3,12 @@
   "name": "mdshare",
   "title": "mdshare — Free markdown sharing with AI integration",
   "description": "Upload markdown, get shareable links, collaborate. Upload, read, update documents, manage comments, generate share links — all via MCP tools. No login required.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "mdshare-mcp",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "transport": ["stdio"]
     }
   ],

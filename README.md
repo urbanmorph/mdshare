@@ -39,7 +39,7 @@ You get back an admin URL. Share it, or generate links with different permission
 npx mdshare-mcp
 ```
 
-Say *"upload this markdown to mdshare"* in any MCP-compatible AI tool. [Setup guide](https://mdshare.live/docs#use-with-ai)
+Say *"upload my-notes.md to mdshare"* in any MCP-compatible AI tool. The MCP server reads files directly from disk (no echoing through the conversation), so it's fast even for large markdown files. [Setup guide](https://mdshare.live/docs#use-with-ai)
 
 ## Tech Stack
 

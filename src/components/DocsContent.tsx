@@ -174,6 +174,7 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
             <li>Links only allow <code>http:</code>, <code>https:</code>, <code>mailto:</code> protocols</li>
             <li>All content should be treated as user-generated</li>
             <li>API responses include <code>X-Content-Source: user-generated</code> header</li>
+            <li>Write endpoints (POST/PUT/PATCH) return <code>Server-Timing</code> headers and a <code>processing_ms</code> field for latency tracking</li>
           </ul>
 
           <hr />
@@ -249,7 +250,11 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
             <li>&ldquo;Post a comment on the budget section&rdquo;</li>
             <li>&ldquo;List all links for this document&rdquo;</li>
             <li>&ldquo;Revoke the edit link I shared with the team&rdquo;</li>
+            <li>&ldquo;Save this mdshare document to /tmp/notes.md&rdquo;</li>
           </ul>
+          <p className="text-sm text-neutral-400">
+            <strong>Tip:</strong> When uploading a file already on disk, the MCP server reads it directly via <code>file_path</code> instead of echoing the bytes through the conversation. This is dramatically faster for AI workflows. Same for downloads via <code>output_path</code>.
+          </p>
 
           <h3>Without MCP (works with any AI)</h3>
           <p>No setup needed. Just tell your AI chatbot:</p>
