@@ -269,10 +269,12 @@ then upload this markdown and give me a share link.`}</code></pre>
 
           <h3>Install</h3>
           <ol className="list-decimal pl-5 space-y-1 text-sm text-neutral-300">
-            <li>Download <a href="/mdshare-vscode.vsix" className="text-indigo-400 hover:text-indigo-300 underline">mdshare-vscode.vsix</a></li>
-            <li>In VS Code, press <code>Cmd+Shift+P</code> (or <code>Ctrl+Shift+P</code>)</li>
-            <li>Type <strong>Install from VSIX</strong> and select the downloaded file</li>
+            <li>Open the <strong>Extensions</strong> panel in VS Code (<code>Cmd+Shift+X</code> or <code>Ctrl+Shift+X</code>)</li>
+            <li>Search for <strong>mdshare</strong> and click <strong>Install</strong>, or install directly from the <a href="https://marketplace.visualstudio.com/items?itemName=urbanmorph.mdshare-live" className="text-indigo-400 hover:text-indigo-300 underline" target="_blank" rel="noopener noreferrer">Marketplace page</a></li>
           </ol>
+          <p className="text-sm text-neutral-500">
+            Or install manually: download <a href="/mdshare-vscode.vsix" className="text-indigo-400 hover:text-indigo-300 underline">mdshare-vscode.vsix</a>, then <code>Cmd+Shift+P</code> &rarr; <strong>Install from VSIX</strong>.
+          </p>
 
           <h3>Usage</h3>
           <ul className="list-disc pl-5 space-y-1 text-sm text-neutral-300">
