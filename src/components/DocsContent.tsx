@@ -265,7 +265,7 @@ then upload this markdown and give me a share link.`}</code></pre>
           <hr />
 
           <h2 id="vscode">VS Code Extension</h2>
-          <p>Share markdown files directly from VS Code. Right-click any <code>.md</code> file or select text and share it instantly.</p>
+          <p>Share markdown files directly from VS Code. Right-click any <code>.md</code> file or select text and share it instantly. Also works in <strong>Cursor</strong> and <strong>Windsurf</strong> since they support the VS Code extension format.</p>
 
           <h3>Install</h3>
           <ol className="list-decimal pl-5 space-y-1 text-sm text-neutral-300">
