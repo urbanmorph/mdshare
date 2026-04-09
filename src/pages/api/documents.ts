@@ -32,6 +32,28 @@ export const POST: APIRoute = async ({ request }) => {
   let title = "Untitled";
 
   const contentType = request.headers.get("content-type") || "";
+  const userAgent = request.headers.get("user-agent") || "";
+  const origin = request.headers.get("origin") || "";
+  const xSource = request.headers.get("x-source") || "";
+
+  // Classify document source. Order matters — first match wins. See
+  // supporting-docs/document-source-tracking.md for the full rationale.
+  let source: "blank" | "paste" | "upload" | "mcp" | "vscode" | "obsidian" | "api";
+  if (contentType.includes("multipart/form-data")) {
+    source = "upload";
+  } else if (xSource === "blank") {
+    source = "blank";
+  } else if (/^mdshare-mcp\//i.test(userAgent)) {
+    source = "mcp";
+  } else if (/mdshare-vscode/i.test(userAgent)) {
+    source = "vscode";
+  } else if (/mdshare-obsidian|Obsidian/i.test(userAgent)) {
+    source = "obsidian";
+  } else if (/^https?:\/\/(mdshare\.live|localhost(:\d+)?)$/i.test(origin)) {
+    source = "paste";
+  } else {
+    source = "api";
+  }
 
   if (contentType.includes("multipart/form-data")) {
     const formData = await request.formData();
@@ -83,10 +105,10 @@ export const POST: APIRoute = async ({ request }) => {
   await db.batch([
     db
       .prepare(
-        `INSERT INTO documents (id, title, content, content_hash, expires_at)
-         VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO documents (id, title, content, content_hash, expires_at, source)
+         VALUES (?, ?, ?, ?, ?, ?)`
       )
-      .bind(docId, title, content, hash, expiresAt),
+      .bind(docId, title, content, hash, expiresAt, source),
     db
       .prepare(
         `INSERT INTO links (id, document_id, token_prefix, token_hash, permission, label, token)

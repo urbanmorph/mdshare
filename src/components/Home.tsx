@@ -35,7 +35,10 @@ export default function Home() {
     try {
       const res = await fetch("/api/documents", {
         method: "POST",
-        headers: { "Content-Type": "text/markdown" },
+        headers: {
+          "Content-Type": "text/markdown",
+          "X-Source": "blank",
+        },
         body: "# Untitled\n\n",
       });
       if (!res.ok) {
