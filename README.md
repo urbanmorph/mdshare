@@ -11,7 +11,7 @@ Share markdown instantly. Free. No login required.
 
 ## Quick Start
 
-Paste markdown at [mdshare.live](https://mdshare.live), or upload via curl:
+Paste markdown at [mdshare.live](https://mdshare.live), start from a blank page, or upload via curl:
 
 ```bash
 curl -X POST https://mdshare.live/api/documents \

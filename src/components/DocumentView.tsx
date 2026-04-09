@@ -41,11 +41,26 @@ export function DocumentView({
   tokenKey,
 }: DocumentViewProps) {
   const [saveStatus, setSaveStatus] = useState<string>("Ready");
-  const [openPanel, setOpenPanel] = useState<Panel | null>(null);
+  const canComment = permission === "admin" || permission === "edit" || permission === "comment";
+  const [openPanel, setOpenPanel] = useState<Panel | null>(() => {
+    if (typeof window === "undefined") return null;
+    const saved = localStorage.getItem("openPanel");
+    if (saved === "links" && permission === "admin") return "links";
+    if (saved === "comments" && canComment) return "comments";
+    return null;
+  });
+  useEffect(() => {
+    if (openPanel) localStorage.setItem("openPanel", openPanel);
+    else localStorage.removeItem("openPanel");
+  }, [openPanel]);
   const [selectedText, setSelectedText] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [liveContent, setLiveContent] = useState(doc.content);
+  const currentTitle = useMemo(() => {
+    const m = liveContent.match(/^#\s+(.+)$/m);
+    return (m ? m[1].trim() : doc.title) || "Untitled";
+  }, [liveContent, doc.title]);
   const [lightEditor, setLightEditor] = useState(false);
   useEffect(() => {
     const saved = localStorage.getItem("editorLight");
@@ -55,7 +70,6 @@ export function DocumentView({
   const isSavingRef = useRef(false);
   const { name: displayName, setName: setDisplayName } = useDisplayName();
   const editable = permission === "admin" || permission === "edit";
-  const canComment = permission === "admin" || permission === "edit" || permission === "comment";
 
   const togglePanel = useCallback((panel: Panel) => {
     setOpenPanel((prev) => (prev === panel ? null : panel));
@@ -78,14 +92,26 @@ export function DocumentView({
   useEffect(() => {
     saveRecentDoc({
       id: doc.id,
-      title: doc.title,
+      title: currentTitle,
       key: tokenKey,
       permission,
     });
-  }, [doc.id, doc.title, tokenKey, permission]);
+  }, [doc.id, currentTitle, tokenKey, permission]);
 
   const [viewers, setViewers] = useState<{ name: string }[]>([]);
   const sessionIdRef = useRef(Math.random().toString(36).slice(2));
+
+  const [showNewBanner, setShowNewBanner] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("new") === "1") {
+      setShowNewBanner(true);
+      url.searchParams.delete("new");
+      window.history.replaceState({}, "", url.toString());
+      if (permission === "admin") setOpenPanel("links");
+    }
+  }, [permission]);
 
   const flashTabTitle = useCallback(() => {
     const original = document.title;
@@ -230,6 +256,7 @@ export function DocumentView({
 
   const handleUpdate = useCallback(
     async (markdown: string) => {
+      setLiveContent(markdown);
       setSaveStatus("Saving...");
       isSavingRef.current = true;
       try {
@@ -273,7 +300,7 @@ export function DocumentView({
           </a>
           <span className="text-neutral-700 hidden sm:inline">/</span>
           <span className="text-sm text-neutral-300 truncate hidden sm:inline">
-            {doc.title}
+            {currentTitle}
           </span>
           {viewers.length > 0 && (
             <span className="hidden sm:flex items-center gap-1.5 text-[11px] text-green-400 shrink-0" title={viewers.map(v => v.name).join(", ")}>
@@ -333,16 +360,37 @@ export function DocumentView({
           <DownloadButton
             documentId={doc.id}
             tokenKey={tokenKey}
-            title={doc.title}
+            title={currentTitle}
           />
           <AboutButton />
         </div>
       </header>
 
+      {showNewBanner && (
+        <div className="flex items-start gap-3 px-3 sm:px-5 py-2.5 bg-indigo-950/40 border-b border-indigo-900/60 text-xs sm:text-sm text-indigo-100">
+          <svg className="w-4 h-4 mt-0.5 shrink-0 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+          </svg>
+          <div className="flex-1 leading-relaxed">
+            <span className="font-semibold">This page is your admin link — bookmark it.</span>{" "}
+            <span className="text-indigo-200/80">
+              Edit the <span className="font-mono">Untitled</span> heading below to rename. Your admin key for AI tools like Claude and Cursor is in the Share links panel.
+            </span>
+          </div>
+          <button
+            onClick={() => setShowNewBanner(false)}
+            aria-label="Dismiss"
+            className="shrink-0 text-indigo-300 hover:text-white transition-colors px-1"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Mobile title bar */}
       <div className="sm:hidden px-3 py-1.5 border-b border-neutral-800 bg-neutral-950">
         <span className="text-xs text-neutral-400 truncate block">
-          {doc.title}
+          {currentTitle}
         </span>
       </div>
 

@@ -29,6 +29,27 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
+  const handleBlank = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "text/markdown" },
+        body: "# Untitled\n\n",
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error || "Failed to create document");
+      }
+      const data: CreateResult = await res.json();
+      window.location.href = `${data.admin_url}&new=1`;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+      setLoading(false);
+    }
+  }, []);
+
   const handleCreate = useCallback(async () => {
     const text = content.trim();
     if (!text) {
@@ -307,6 +328,20 @@ export default function Home() {
           className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-neutral-800 disabled:text-neutral-600 text-white font-medium rounded-xl transition-colors"
         >
           {loading ? <Spinner context="upload" /> : "Create & Get Share Links"}
+        </button>
+
+        <div className="flex items-center gap-3 text-[11px] text-neutral-600">
+          <div className="flex-1 h-px bg-neutral-900" />
+          <span>or</span>
+          <div className="flex-1 h-px bg-neutral-900" />
+        </div>
+
+        <button
+          onClick={handleBlank}
+          disabled={loading}
+          className="w-full py-3 bg-transparent border border-neutral-800 hover:border-neutral-600 hover:bg-neutral-900 disabled:opacity-50 text-neutral-300 font-medium rounded-xl transition-colors"
+        >
+          Start with a blank page →
         </button>
 
         {recentDocs.length > 0 && (
