@@ -12,3 +12,4 @@ mdshare uses Astro 5 with the `@astrojs/cloudflare` adapter, deployed natively t
 - **Custom worker entry**: `src/worker.ts` is the actual Cloudflare Worker entry. It exports a `createExports(manifest)` function that wraps Astro's `handle()` to add WebSocket bypass, security headers, and Durable Object exports
 - **`public/.assetsignore`** prevents wrangler from refusing to upload because `_worker.js` lives inside the assets directory
 - **No middleware.ts** — security headers are added in `src/worker.ts` after Astro's response
+- **Tiptap BubbleMenu** (`@tiptap/react/menus`) renders a floating "Comment" button above the user's text selection. Lives in `components/editor/tiptap-editor.tsx`. Uses `onMouseDown preventDefault` to prevent iOS from clearing the selection on tap. The bubble is the single path for anchoring a comment — the legacy `mouseup`/`touchend` tracker was removed.
