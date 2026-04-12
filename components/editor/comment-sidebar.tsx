@@ -47,6 +47,15 @@ export function CommentSidebar({
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const commentRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const prevSelectedTextRef = useRef(selectedText);
+
+  useEffect(() => {
+    if (selectedText && !prevSelectedTextRef.current) {
+      textareaRef.current?.focus();
+    }
+    prevSelectedTextRef.current = selectedText;
+  }, [selectedText]);
 
   const canResolve = canComment; // edit and admin can resolve
 
@@ -162,6 +171,66 @@ export function CommentSidebar({
           </button>
         )}
       </div>
+
+      {/* Add comment form — at the top so it stays visible above the keyboard on mobile */}
+      {canComment && (
+        <div className="border-b border-neutral-800 pb-3 mb-3">
+          {selectedText ? (
+            <div className="flex items-start gap-1 mb-2">
+              <div className="flex-1 text-[11px] text-indigo-400 italic border-l-2 border-indigo-500 pl-2">
+                &ldquo;{selectedText.slice(0, 60)}
+                {selectedText.length > 60 ? "..." : ""}&rdquo;
+              </div>
+              <button
+                onClick={onClearSelection}
+                className="text-neutral-600 hover:text-neutral-400 text-xs shrink-0 px-1"
+                title="Remove selection"
+              >
+                &times;
+              </button>
+            </div>
+          ) : (
+            <p className="text-[11px] text-neutral-600 mb-2 italic">
+              Select text in the editor to anchor your comment
+            </p>
+          )}
+          <p className="text-[11px] text-neutral-600 mb-2">
+            Commenting as{" "}
+            {displayName === "Anonymous" ? (
+              <button
+                onClick={() => {
+                  const name = prompt("What's your name?");
+                  if (name?.trim()) onChangeDisplayName(name.trim());
+                }}
+                className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors"
+              >
+                Anonymous (tap to set name)
+              </button>
+            ) : (
+              <span className="text-neutral-300">{displayName}</span>
+            )}
+          </p>
+          <textarea
+            ref={textareaRef}
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder={
+              selectedText
+                ? "Comment on selected text..."
+                : "Add a comment..."
+            }
+            rows={3}
+            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-300 placeholder-neutral-600 resize-none mb-2 touch-manipulation"
+          />
+          <button
+            onClick={postComment}
+            disabled={posting || !newComment.trim()}
+            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-neutral-800 disabled:text-neutral-600 text-white text-sm font-medium rounded-lg transition-colors touch-manipulation"
+          >
+            {posting ? <><Spinner context="comment" /></> : "Post Comment"}
+          </button>
+        </div>
+      )}
 
       {/* Comment list — grouped with replies */}
       <div className="space-y-3 flex-1 overflow-y-auto mb-4">
@@ -319,65 +388,6 @@ export function CommentSidebar({
           });
         })()}
       </div>
-
-      {/* Add comment form */}
-      {canComment && (
-        <div className="border-t border-neutral-800 pt-3">
-          {selectedText ? (
-            <div className="flex items-start gap-1 mb-2">
-              <div className="flex-1 text-[11px] text-indigo-400 italic border-l-2 border-indigo-500 pl-2">
-                &ldquo;{selectedText.slice(0, 60)}
-                {selectedText.length > 60 ? "..." : ""}&rdquo;
-              </div>
-              <button
-                onClick={onClearSelection}
-                className="text-neutral-600 hover:text-neutral-400 text-xs shrink-0 px-1"
-                title="Remove selection"
-              >
-                &times;
-              </button>
-            </div>
-          ) : (
-            <p className="text-[11px] text-neutral-600 mb-2 italic">
-              Select text in the editor to anchor your comment
-            </p>
-          )}
-          <p className="text-[11px] text-neutral-600 mb-2">
-            Commenting as{" "}
-            {displayName === "Anonymous" ? (
-              <button
-                onClick={() => {
-                  const name = prompt("What's your name?");
-                  if (name?.trim()) onChangeDisplayName(name.trim());
-                }}
-                className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors"
-              >
-                Anonymous (tap to set name)
-              </button>
-            ) : (
-              <span className="text-neutral-300">{displayName}</span>
-            )}
-          </p>
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder={
-              selectedText
-                ? "Comment on selected text..."
-                : "Add a comment..."
-            }
-            rows={3}
-            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-300 placeholder-neutral-600 resize-none mb-2 touch-manipulation"
-          />
-          <button
-            onClick={postComment}
-            disabled={posting || !newComment.trim()}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-neutral-800 disabled:text-neutral-600 text-white text-sm font-medium rounded-lg transition-colors touch-manipulation"
-          >
-            {posting ? <><Spinner context="comment" /></> : "Post Comment"}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
