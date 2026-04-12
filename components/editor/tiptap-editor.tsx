@@ -1,5 +1,6 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
@@ -27,6 +28,8 @@ interface TiptapEditorProps {
   lightMode?: boolean;
   onToggleLight?: () => void;
   isAdmin?: boolean;
+  canComment?: boolean;
+  onRequestComment?: (text: string) => void;
 }
 
 export function TiptapEditor({
@@ -39,6 +42,8 @@ export function TiptapEditor({
   lightMode,
   onToggleLight,
   isAdmin,
+  canComment,
+  onRequestComment,
 }: TiptapEditorProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -162,6 +167,33 @@ export function TiptapEditor({
       {editable && <Toolbar editor={editor} lightMode={lightMode} onToggleLight={onToggleLight} isAdmin={isAdmin} />}
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6" id="editor-scroll-container">
         <EditorContent editor={editor} />
+        {canComment && onRequestComment && editor && (
+          <BubbleMenu
+            editor={editor}
+            shouldShow={({ editor: e }) => {
+              const { from, to, empty } = e.state.selection;
+              if (empty || from === to) return false;
+              const text = e.state.doc.textBetween(from, to, " ").trim();
+              return text.length > 0;
+            }}
+          >
+            <button
+              type="button"
+              aria-label="Comment on selection"
+              onClick={() => {
+                const { from, to } = editor.state.selection;
+                const text = editor.state.doc.textBetween(from, to, " ").trim();
+                if (text) onRequestComment(text);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] bg-neutral-900 border border-neutral-700 rounded-lg text-xs text-neutral-200 hover:bg-neutral-800 hover:border-neutral-600 shadow-lg transition-colors touch-manipulation"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
+              Comment
+            </button>
+          </BubbleMenu>
+        )}
       </div>
     </div>
   );

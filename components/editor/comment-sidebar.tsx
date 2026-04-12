@@ -45,6 +45,15 @@ export function CommentSidebar({
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const commentRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const prevSelectedTextRef = useRef(selectedText);
+
+  useEffect(() => {
+    if (selectedText && !prevSelectedTextRef.current) {
+      textareaRef.current?.focus();
+    }
+    prevSelectedTextRef.current = selectedText;
+  }, [selectedText]);
 
   const canResolve = canComment; // edit and admin can resolve
 
@@ -352,6 +361,7 @@ export function CommentSidebar({
             )}
           </p>
           <textarea
+            ref={textareaRef}
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder={

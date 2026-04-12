@@ -17,6 +17,7 @@ interface DocumentViewProps {
   document: DocumentRow;
   permission: Permission;
   tokenKey: string;
+  enableCommentBubble?: boolean;
 }
 
 const PERMISSION_LABELS: Record<Permission, string> = {
@@ -39,6 +40,7 @@ export function DocumentView({
   document: doc,
   permission,
   tokenKey,
+  enableCommentBubble,
 }: DocumentViewProps) {
   const [saveStatus, setSaveStatus] = useState<string>("Ready");
   const canComment = permission === "admin" || permission === "edit" || permission === "comment";
@@ -54,6 +56,10 @@ export function DocumentView({
     else localStorage.removeItem("openPanel");
   }, [openPanel]);
   const [selectedText, setSelectedText] = useState("");
+  const handleRequestComment = useCallback((text: string) => {
+    setSelectedText(text);
+    setOpenPanel("comments");
+  }, []);
   const [comments, setComments] = useState<Comment[]>([]);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [liveContent, setLiveContent] = useState(doc.content);
@@ -202,9 +208,12 @@ export function DocumentView({
     [comments]
   );
 
-  // Text selection tracking — only when comments panel is open
+  // Text selection tracking — legacy path for normal /d/[id] route.
+  // When enableCommentBubble is true (/try/[id] route), the bubble is the
+  // canonical path and this tracker is skipped so testing is isolated.
   useEffect(() => {
     if (openPanel !== "comments") return;
+    if (enableCommentBubble) return;
     const handleSelection = (e: Event) => {
       const editorContainer = document.getElementById("editor-scroll-container");
       if (!editorContainer || !editorContainer.contains(e.target as Node)) return;
@@ -218,7 +227,7 @@ export function DocumentView({
       document.removeEventListener("mouseup", handleSelection);
       document.removeEventListener("touchend", handleSelection);
     };
-  }, [openPanel]);
+  }, [openPanel, enableCommentBubble]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -432,6 +441,8 @@ export function DocumentView({
                 return !v;
               })}
               isAdmin={permission === "admin"}
+              canComment={canComment}
+              onRequestComment={enableCommentBubble && canComment ? handleRequestComment : undefined}
             />
           ) : (
             <MarkdownViewer content={liveContent} />
