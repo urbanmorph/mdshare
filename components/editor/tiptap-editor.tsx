@@ -184,7 +184,12 @@ export function TiptapEditor({
               onClick={() => {
                 const { from, to } = editor.state.selection;
                 const text = editor.state.doc.textBetween(from, to, " ").trim();
-                if (text) onRequestComment(text);
+                if (text) {
+                  onRequestComment(text);
+                  // Collapse selection so iOS dismisses its native popup and
+                  // shouldShow returns false (hides the bubble cleanly).
+                  editor.commands.setTextSelection(to);
+                }
               }}
               className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] bg-neutral-900 border border-neutral-700 rounded-lg text-xs text-neutral-200 hover:bg-neutral-800 hover:border-neutral-600 shadow-lg transition-colors touch-manipulation"
             >
