@@ -519,6 +519,7 @@ export function DocumentView({
                 onActiveCommentChange={setActiveCommentId}
                 displayName={displayName}
                 onChangeDisplayName={setDisplayName}
+                onClosePanel={() => setOpenPanel(null)}
               />
             )}
             {openPanel === "links" && permission === "admin" && (
