@@ -16,16 +16,17 @@ curl -X POST https://mdshare.live/api/documents \\
   --data-binary @your-file.md
 \`\`\`
 
-**Response:**
+**Response (201 Created):**
 \`\`\`json
 {
   "document_id": "abc123",
   "admin_key": "adm_xK9mQ4r8...",
-  "admin_url": "https://mdshare.live/d/abc123?key=adm_xK9mQ4r8..."
+  "admin_url": "https://mdshare.live/d/abc123?key=adm_xK9mQ4r8...",
+  "expires_at": "2026-07-10T12:00:00.000Z"
 }
 \`\`\`
 
-Save the \`admin_key\` — it's your master key. If lost, admin access is lost.
+Save the \`admin_key\` — it's your master key. If lost, admin access is lost. Documents expire in 90 days (see \`expires_at\`).
 
 ### Read a document
 
@@ -36,6 +37,8 @@ curl "https://mdshare.live/api/d/{id}?key={any_valid_key}"
 # Raw markdown
 curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"
 \`\`\`
+
+The JSON response includes \`document_id\`, \`title\`, \`content\`, \`content_hash\`, \`permission\`, \`created_at\`, \`updated_at\`, \`expires_at\`, and edit attribution fields (\`last_edited_by\`, \`last_edited_via\`, \`last_edited_at\`).
 
 ### Update a document
 
