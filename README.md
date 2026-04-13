@@ -4,6 +4,8 @@ Share markdown instantly. Free. No login required.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![MCP](https://img.shields.io/npm/v/mdshare-mcp?label=MCP&color=indigo)](https://www.npmjs.com/package/mdshare-mcp)
+[![GitHub last commit](https://img.shields.io/github/last-commit/urbanmorph/mdshare)](https://github.com/urbanmorph/mdshare)
+[![Runs on Cloudflare Workers](https://img.shields.io/badge/Runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare)](https://mdshare.live)
 
 **[mdshare.live](https://mdshare.live)** | **[API Docs](https://mdshare.live/docs)** | **[VS Code](https://mdshare.live/docs#vscode)** | **[Obsidian](https://mdshare.live/docs#obsidian)**
 
