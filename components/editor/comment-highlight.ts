@@ -72,15 +72,23 @@ export const CommentHighlight = Extension.create({
 
             if (anchors.length === 0) return DecorationSet.empty;
 
-            // Skip rebuild if doc hasn't changed and no metadata updates
-            if (!tr.docChanged && oldSet !== DecorationSet.empty) {
-              // Only rebuild if activeId changed (check via a stored ref)
-              const prevActiveId = extension.storage._prevActiveId;
-              const prevAnchorCount = extension.storage._prevAnchorCount;
-              if (activeId === prevActiveId && anchors.length === prevAnchorCount) {
-                return oldSet;
-              }
+            const prevActiveId = extension.storage._prevActiveId;
+            const prevAnchorCount = extension.storage._prevAnchorCount;
+            const anchorStateChanged = activeId !== prevActiveId || anchors.length !== prevAnchorCount;
+
+            // Doc changed but anchor state is the same — efficiently remap
+            // decoration positions through the transaction's mapping. O(decorations)
+            // instead of O(doc_size × anchors).
+            if (tr.docChanged && !anchorStateChanged) {
+              return oldSet.map(tr.mapping, tr.doc);
             }
+
+            // No doc change, no anchor state change — reuse as-is
+            if (!tr.docChanged && !anchorStateChanged && oldSet !== DecorationSet.empty) {
+              return oldSet;
+            }
+
+            // Full rebuild only when anchor state changes (comment added/removed/activated)
             extension.storage._prevActiveId = activeId;
             extension.storage._prevAnchorCount = anchors.length;
 
