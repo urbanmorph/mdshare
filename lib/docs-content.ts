@@ -51,6 +51,16 @@ curl -X PUT "https://mdshare.live/api/d/{id}?key={edit_or_admin_key}" \\
 
 The \`X-Author\` header is optional. It tags the edit in version history.
 
+### Patch a document (partial update)
+
+\`\`\`bash
+curl -X PATCH "https://mdshare.live/api/d/{id}?key={edit_or_admin_key}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"operations": [{"find": "old text", "replace": "new text"}], "author": "Your Name"}'
+\`\`\`
+
+Use \`PATCH\` when you have a small edit to a large document — it avoids retransmitting unchanged content, and the version history records the specific change rather than "whole doc rewritten". Each \`find\` string must be unique in the document unless \`replace_all: true\` is set on that operation. Operations apply sequentially; if any \`find\` is not found, the entire patch fails atomically.
+
 ### Generate a share link (admin only)
 
 \`\`\`bash

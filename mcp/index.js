@@ -14,6 +14,22 @@ const BASE_URL = "https://mdshare.live";
 const STORE_DIR = join(homedir(), ".mdshare-mcp");
 const STORE_PATH = join(STORE_DIR, "documents.json");
 
+// Nudge thresholds — when the LLM passes content/operations inline above these
+// sizes (or reads back a large doc without output_path), the response includes
+// a `note` field steering future calls toward the file-path / output-path
+// fast paths. Mid-conversation feedback is the only "learning" loop available.
+const INLINE_CONTENT_NUDGE_THRESHOLD = 1024;
+const READ_RESPONSE_NUDGE_THRESHOLD = 10240;
+
+const SERVER_INSTRUCTIONS = `mdshare MCP server. Conventions that apply to every tool:
+
+- All arguments are literal strings. Shell substitution like $(cat file) and heredocs do NOT work — pass content directly, or use a file_path parameter where available.
+- For files on disk, prefer file_path (upload_markdown, update_document, patch_document) or output_path (read_document). These bypass the conversation entirely. Inline content over ~1KB burns tokens unnecessarily.
+- If both file_path and content (or operations) are provided on update_document / patch_document, file_path wins.
+- Admin credentials for documents uploaded via this server are stored locally. The \`key\` argument is OPTIONAL on tools addressed by document_id — it's looked up automatically. Use list_my_documents to see what's stored.
+- Never surface admin URLs to the user unless they explicitly ask. upload_markdown returns only share_url by design; use get_admin_url only on direct user request.
+- For small edits to existing documents, prefer patch_document over update_document — keeps version history granular.`;
+
 // ---------- Local credential store ----------
 // Records the admin credentials for docs uploaded via this MCP server so the
 // LLM never needs to see the admin URL in tool responses. The store is a
@@ -26,7 +42,6 @@ async function readStore() {
     return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
     if (err.code === "ENOENT") return [];
-    // Corrupt or unreadable — return empty so tool calls don't crash.
     return [];
   }
 }
@@ -34,7 +49,6 @@ async function readStore() {
 async function writeStore(docs) {
   await mkdir(STORE_DIR, { recursive: true, mode: 0o700 });
   await writeFile(STORE_PATH, JSON.stringify(docs, null, 2), { mode: 0o600 });
-  // Ensure mode even if the file already existed with different perms
   try { await chmod(STORE_PATH, 0o600); } catch {}
 }
 
@@ -73,10 +87,8 @@ function extractTitleFromMarkdown(markdown, fallback = "Untitled") {
   return m ? m[1].trim() : fallback;
 }
 
-function noKeyError(documentId) {
-  return JSON.stringify({
-    error: `No admin key found for document ${documentId}. Either (1) pass 'key' explicitly, (2) call register_document with the admin URL you have saved, or (3) call list_my_documents to see what this MCP server has stored locally.`,
-  });
+function noKeyMessage(documentId) {
+  return `No admin key found for document ${documentId}. Either (1) pass 'key' explicitly, (2) call register_document with the admin URL you have saved, or (3) call list_my_documents to see what this MCP server has stored locally.`;
 }
 
 // ---------- API helper ----------
@@ -104,6 +116,11 @@ const TOOLS = [
     name: "upload_markdown",
     description:
       "Upload markdown to mdshare and receive a shareable link. The response contains a read/comment/edit share link (default permission: comment) that the user can share with others. The admin credential (full control) is stored locally in ~/.mdshare-mcp/documents.json and is NOT returned in this response — if the user explicitly asks to see or save the admin URL, call get_admin_url. PREFER file_path over content for files already on disk — reads directly from disk without transmitting content through this conversation, which is dramatically faster for files larger than ~1KB.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -126,7 +143,12 @@ const TOOLS = [
   {
     name: "read_document",
     description:
-      "Read a markdown document from mdshare. Returns the content, title, last editor, and permission level. If the document was uploaded via this MCP server, 'key' is optional — the admin key will be loaded from local storage. If output_path is provided, the content is written to that local file path and a small summary is returned instead of the full content — much faster for large documents.",
+      "Read a markdown document from mdshare. Returns the content. If the document was uploaded via this MCP server, 'key' is optional — the admin key will be loaded from local storage. PREFER output_path over inline reading for large documents — writes directly to disk and returns a small summary, dramatically faster than echoing content through the conversation.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -134,7 +156,7 @@ const TOOLS = [
         key: { type: "string", description: "Access key (admin, edit, comment, or view). Optional if the document is in this MCP server's local store." },
         output_path: {
           type: "string",
-          description: "Optional. Absolute local file path to write the document content to. When provided, the response is a small summary (saved_to, bytes) instead of the full content.",
+          description: "Optional. Absolute local file path to write the document content to. PREFERRED for documents larger than ~10KB — bypasses inline content transmission. When provided, the response is a small summary (saved_to, bytes) instead of the full content.",
         },
       },
       required: ["document_id"],
@@ -143,30 +165,51 @@ const TOOLS = [
   {
     name: "update_document",
     description:
-      "Update the content of an existing mdshare document. Requires edit or admin permission. If the document is in this MCP server's local store, 'key' is optional — the admin key will be used automatically.",
+      "Update the content of an existing mdshare document (full replace). Requires edit or admin permission. If the document is in this MCP server's local store, 'key' is optional. PREFER file_path over content for files already on disk — reads directly from disk without transmitting content through this conversation. If both file_path and content are provided, file_path wins. For small edits to large documents, consider patch_document instead — keeps version history granular.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+    },
     inputSchema: {
       type: "object",
       properties: {
         document_id: { type: "string", description: "Document ID" },
         key: { type: "string", description: "Edit or admin key. Optional if the document is in this MCP server's local store." },
-        content: { type: "string", description: "New markdown content" },
+        file_path: {
+          type: "string",
+          description: "Absolute path to a local markdown file. PREFERRED for any file already on disk — bypasses inline content transmission entirely.",
+        },
+        content: {
+          type: "string",
+          description: "Inline markdown content (full document body). Only use for short content composed in the conversation. For files on disk, use file_path instead.",
+        },
         author: { type: "string", description: "Your name (for edit attribution)" },
       },
-      required: ["document_id", "content"],
+      required: ["document_id"],
     },
   },
   {
     name: "patch_document",
     description:
-      "Apply find/replace operations to a document without rewriting the full content. More efficient than update_document for small edits to large documents. Each find string must be unique unless replace_all is set. If the document is in this MCP server's local store, 'key' is optional.",
+      "Apply find/replace operations to a document without rewriting the full content. More efficient than update_document for small edits to large documents. Each find string must be unique unless replace_all is set. If the document is in this MCP server's local store, 'key' is optional. PREFER file_path over operations for batches of operations stored in a JSON file on disk — bypasses inline transmission. If both file_path and operations are provided, file_path wins.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+    },
     inputSchema: {
       type: "object",
       properties: {
         document_id: { type: "string", description: "Document ID" },
         key: { type: "string", description: "Edit or admin key. Optional if the document is in this MCP server's local store." },
+        file_path: {
+          type: "string",
+          description: "Absolute path to a local JSON file containing an array of {find, replace, replace_all?} operations. PREFERRED when the operations are already prepared on disk.",
+        },
         operations: {
           type: "array",
-          description: "Find/replace operations to apply sequentially",
+          description: "Find/replace operations to apply sequentially. Use file_path instead for operations stored on disk.",
           items: {
             type: "object",
             properties: {
@@ -179,13 +222,18 @@ const TOOLS = [
         },
         author: { type: "string", description: "Your name (for edit attribution)" },
       },
-      required: ["document_id", "operations"],
+      required: ["document_id"],
     },
   },
   {
     name: "generate_link",
     description:
       "Generate a share link for a document with specific permissions. Requires admin access. If the document is in this MCP server's local store, 'key' is optional.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -205,6 +253,11 @@ const TOOLS = [
     name: "list_links",
     description:
       "List all share links for a document, including status (active/revoked), permission, and label. Requires admin access. If the document is in this MCP server's local store, 'key' is optional.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -218,6 +271,11 @@ const TOOLS = [
     name: "revoke_link",
     description:
       "Revoke a share link, making it permanently inactive. Use list_links first to find the token of the link to revoke. Requires admin access. If the document is in this MCP server's local store, 'key' is optional.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -232,6 +290,11 @@ const TOOLS = [
     name: "list_comments",
     description:
       "List all comments on a document, including replies and resolution status. If the document is in this MCP server's local store, 'key' is optional.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -245,6 +308,11 @@ const TOOLS = [
     name: "post_comment",
     description:
       "Post a comment on a document, optionally anchored to specific text. Can also reply to an existing comment. If the document is in this MCP server's local store, 'key' is optional.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -262,6 +330,11 @@ const TOOLS = [
     name: "resolve_comment",
     description:
       "Resolve or unresolve a comment. Requires edit or admin permission. Key must be provided explicitly because comments are addressed by comment_id — the MCP server can't look up the parent document.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -276,6 +349,11 @@ const TOOLS = [
     name: "get_versions",
     description:
       "Get the edit history of a document — who edited, when, and via what. If the document is in this MCP server's local store, 'key' is optional.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -289,6 +367,11 @@ const TOOLS = [
     name: "list_my_documents",
     description:
       "List documents you've previously uploaded via this MCP server on this machine. Returns document_id, title, share_url, share_permission, created_at, and expires_at for each — does NOT return the admin credential. Use this to help the user find and resume older documents without re-pasting admin URLs. Does NOT include documents created via the mdshare web UI or via direct API calls from other clients — only those created by this MCP server. Returns an empty array on a fresh install or after the local store has been cleared.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
     inputSchema: {
       type: "object",
       properties: {},
@@ -298,6 +381,11 @@ const TOOLS = [
     name: "get_admin_url",
     description:
       "Retrieve the admin URL for a document previously uploaded via this MCP server. The admin URL grants full control and is equivalent to a password. ONLY call this tool when the user explicitly asks to see, save, or copy the admin URL — for example: 'give me the admin URL', 'save the admin link to my notes', 'what's the owner credential'. DO NOT call this as part of normal upload, share, or collaboration flows; the admin URL should never be surfaced to the user unless directly requested.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -310,6 +398,11 @@ const TOOLS = [
     name: "register_document",
     description:
       "Register an mdshare admin URL you already have saved (in notes, chat history, emails, etc.) so it can be resumed without re-pasting the key every time. Takes an admin URL of the form https://mdshare.live/d/{id}?key=adm_..., verifies it against the live API, and stores it in ~/.mdshare-mcp/documents.json. Only accepts admin URLs (adm_ prefix) — view/comment/edit share links will be rejected. For bulk registration across many files, use the LLM's built-in file reading and search tools to find admin URLs, then call this tool once per URL found.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -324,6 +417,12 @@ const TOOLS = [
 ];
 
 // ---------- Tool handlers ----------
+//
+// Convention: handlers throw `Error` on user-input or business-logic failures.
+// The outer dispatcher (CallToolRequestSchema handler) catches and translates
+// to a spec-compliant `{ isError: true, content: [{type, text: JSON}] }` shape.
+// Successful responses return a string (already JSON-stringified or raw text)
+// which the dispatcher wraps as a normal text content block.
 
 async function handleTool(name, args) {
   switch (name) {
@@ -337,12 +436,12 @@ async function handleTool(name, args) {
       } else if (args.content) {
         body = args.content;
       } else {
-        return JSON.stringify({ error: "Must provide either file_path or content" });
+        throw new Error("Must provide either file_path or content");
       }
 
       const sharePermission = args.share_permission || "comment";
       if (!["view", "comment", "edit"].includes(sharePermission)) {
-        return JSON.stringify({ error: "share_permission must be 'view', 'comment', or 'edit'" });
+        throw new Error("share_permission must be 'view', 'comment', or 'edit'");
       }
 
       // 1. Create document — receive admin credentials
@@ -352,7 +451,7 @@ async function handleTool(name, args) {
         body,
       });
       if (createRes.status !== 201 && createRes.status !== 200) {
-        return JSON.stringify({ error: "Failed to create document", status: createRes.status, details: createRes.data });
+        throw new Error(`Failed to create document (HTTP ${createRes.status}): ${typeof createRes.data === "string" ? createRes.data : JSON.stringify(createRes.data)}`);
       }
       const created = createRes.data;
       const documentId = created.document_id;
@@ -360,7 +459,6 @@ async function handleTool(name, args) {
       const adminUrl = created.admin_url;
       const expiresAt = created.expires_at;
 
-      // Title comes from markdown heading, falling back to filename, then 'Untitled'
       const title = extractTitleFromMarkdown(body, filenameTitle || "Untitled");
 
       // 2. Generate a share link with the requested permission
@@ -391,8 +489,9 @@ async function handleTool(name, args) {
         record.share_url = linkRes.data.url;
       }
 
-      // 3. Persist to local store. If this fails, we must surface the admin
-      // URL because the credential would otherwise be lost.
+      // Local store write — if this fails, surface the admin URL because the
+      // credential would otherwise be lost. This is the one place we MUST
+      // expose the admin URL despite the no-leak rule.
       try {
         await addDoc(record);
       } catch (err) {
@@ -406,7 +505,6 @@ async function handleTool(name, args) {
       }
 
       if (!record.share_url) {
-        // Doc created and stored, but share link generation failed
         return JSON.stringify({
           document_id: documentId,
           title,
@@ -428,7 +526,7 @@ async function handleTool(name, args) {
 
     case "read_document": {
       const key = await resolveKey(args.document_id, args.key);
-      if (!key) return noKeyError(args.document_id);
+      if (!key) throw new Error(noKeyMessage(args.document_id));
       const { data } = await callApi(
         `/api/d/${args.document_id}?key=${key}`,
         { headers: { Accept: "text/markdown" }, contentType: "text/plain" }
@@ -441,53 +539,94 @@ async function handleTool(name, args) {
           bytes: Buffer.byteLength(content, "utf-8"),
         }, null, 2);
       }
+      // Nudge wrapping for large inline reads — keeps small reads as raw text
+      const bytes = Buffer.byteLength(content, "utf-8");
+      if (typeof data === "string" && bytes > READ_RESPONSE_NUDGE_THRESHOLD) {
+        return JSON.stringify({
+          content,
+          note: `${bytes} bytes returned inline. For future calls on large documents, pass output_path to write directly to disk and receive a compact summary instead.`,
+        }, null, 2);
+      }
       return content;
     }
 
     case "update_document": {
       const key = await resolveKey(args.document_id, args.key);
-      if (!key) return noKeyError(args.document_id);
+      if (!key) throw new Error(noKeyMessage(args.document_id));
+      let body;
+      let usedFilePath = false;
+      if (args.file_path) {
+        body = await readFile(args.file_path, "utf-8");
+        usedFilePath = true;
+      } else if (args.content) {
+        body = args.content;
+      } else {
+        throw new Error("Must provide either file_path or content");
+      }
       const headers = {};
       if (args.author) headers["X-Author"] = args.author;
       const { data } = await callApi(
         `/api/d/${args.document_id}?key=${key}`,
-        { method: "PUT", contentType: "text/markdown", body: args.content, headers }
+        { method: "PUT", contentType: "text/markdown", body, headers }
       );
+      // Nudge if inline content was passed above threshold
+      if (!usedFilePath && typeof data === "object" && data !== null) {
+        const bytes = Buffer.byteLength(body, "utf-8");
+        if (bytes > INLINE_CONTENT_NUDGE_THRESHOLD) {
+          data.note = `${bytes} bytes transmitted inline. For future calls on files already on disk, use file_path to avoid this.`;
+        }
+      }
       return JSON.stringify(data, null, 2);
     }
 
     case "patch_document": {
       const key = await resolveKey(args.document_id, args.key);
-      if (!key) return noKeyError(args.document_id);
-      // Some MCP clients serialize array parameters as JSON strings instead of
-      // native arrays. Parse defensively so both cases work.
-      let operations = args.operations;
-      if (typeof operations === "string") {
+      if (!key) throw new Error(noKeyMessage(args.document_id));
+      let operations;
+      let usedFilePath = false;
+      if (args.file_path) {
+        const fileText = await readFile(args.file_path, "utf-8");
         try {
-          operations = JSON.parse(operations);
+          operations = JSON.parse(fileText);
         } catch {
-          return JSON.stringify({
-            error: "operations must be an array or a JSON-encoded array string",
-          });
+          throw new Error("operations file must contain a JSON array of {find, replace} objects");
+        }
+        usedFilePath = true;
+      } else {
+        // Some MCP clients serialize array parameters as JSON strings instead
+        // of native arrays — parse defensively so both cases work.
+        operations = args.operations;
+        if (typeof operations === "string") {
+          try {
+            operations = JSON.parse(operations);
+          } catch {
+            throw new Error("operations must be an array or a JSON-encoded array string");
+          }
         }
       }
       if (!Array.isArray(operations) || operations.length === 0) {
-        return JSON.stringify({
-          error: "operations must be a non-empty array of {find, replace} objects",
-        });
+        throw new Error("operations must be a non-empty array of {find, replace} objects");
       }
-      const body = { operations };
-      if (args.author) body.author = args.author;
+      const requestBody = { operations };
+      if (args.author) requestBody.author = args.author;
       const { data } = await callApi(
         `/api/d/${args.document_id}?key=${key}`,
-        { method: "PATCH", body: JSON.stringify(body) }
+        { method: "PATCH", body: JSON.stringify(requestBody) }
       );
+      // Nudge if operations were passed inline (not from a file) and the
+      // serialized array is large
+      if (!usedFilePath && typeof data === "object" && data !== null) {
+        const bytes = Buffer.byteLength(JSON.stringify(operations), "utf-8");
+        if (bytes > INLINE_CONTENT_NUDGE_THRESHOLD) {
+          data.note = `${bytes} bytes of operations transmitted inline. For future bulk patches, write the operations to a JSON file and pass file_path.`;
+        }
+      }
       return JSON.stringify(data, null, 2);
     }
 
     case "generate_link": {
       const key = await resolveKey(args.document_id, args.key);
-      if (!key) return noKeyError(args.document_id);
+      if (!key) throw new Error(noKeyMessage(args.document_id));
       const { data } = await callApi(
         `/api/d/${args.document_id}/links?key=${key}`,
         {
@@ -503,7 +642,7 @@ async function handleTool(name, args) {
 
     case "list_links": {
       const key = await resolveKey(args.document_id, args.key);
-      if (!key) return noKeyError(args.document_id);
+      if (!key) throw new Error(noKeyMessage(args.document_id));
       const { data } = await callApi(
         `/api/d/${args.document_id}/links?key=${key}`
       );
@@ -512,7 +651,7 @@ async function handleTool(name, args) {
 
     case "revoke_link": {
       const key = await resolveKey(args.document_id, args.key);
-      if (!key) return noKeyError(args.document_id);
+      if (!key) throw new Error(noKeyMessage(args.document_id));
       const { data } = await callApi(
         `/api/links/${args.link_token}?key=${key}`,
         {
@@ -525,7 +664,7 @@ async function handleTool(name, args) {
 
     case "list_comments": {
       const key = await resolveKey(args.document_id, args.key);
-      if (!key) return noKeyError(args.document_id);
+      if (!key) throw new Error(noKeyMessage(args.document_id));
       const { data } = await callApi(
         `/api/d/${args.document_id}/comments?key=${key}`
       );
@@ -534,7 +673,7 @@ async function handleTool(name, args) {
 
     case "post_comment": {
       const key = await resolveKey(args.document_id, args.key);
-      if (!key) return noKeyError(args.document_id);
+      if (!key) throw new Error(noKeyMessage(args.document_id));
       const body = {
         content: args.content,
         author_name: args.author_name || "AI Assistant",
@@ -549,8 +688,7 @@ async function handleTool(name, args) {
     }
 
     case "resolve_comment": {
-      // Key is still required — comments are addressed by comment_id, no
-      // parent document_id context to look up.
+      // Key required — comments addressed by comment_id, no parent doc lookup
       const { data } = await callApi(
         `/api/comments/${args.comment_id}?key=${args.key}`,
         {
@@ -563,7 +701,7 @@ async function handleTool(name, args) {
 
     case "get_versions": {
       const key = await resolveKey(args.document_id, args.key);
-      if (!key) return noKeyError(args.document_id);
+      if (!key) throw new Error(noKeyMessage(args.document_id));
       const { data } = await callApi(
         `/api/d/${args.document_id}/versions?key=${key}`
       );
@@ -572,20 +710,17 @@ async function handleTool(name, args) {
 
     case "list_my_documents": {
       const docs = await readStore();
-      // Strip admin credentials before returning to the LLM
       const safe = docs.map(stripAdminFields);
       return JSON.stringify({ documents: safe, count: safe.length }, null, 2);
     }
 
     case "get_admin_url": {
       if (!args.document_id) {
-        return JSON.stringify({ error: "document_id is required" });
+        throw new Error("document_id is required");
       }
       const doc = await findDoc(args.document_id);
       if (!doc) {
-        return JSON.stringify({
-          error: `No stored record for document ${args.document_id}. If you have the admin URL saved elsewhere, use register_document to add it to the local store first.`,
-        });
+        throw new Error(`No stored record for document ${args.document_id}. If you have the admin URL saved elsewhere, use register_document to add it to the local store first.`);
       }
       return JSON.stringify({
         document_id: doc.id,
@@ -597,24 +732,16 @@ async function handleTool(name, args) {
     case "register_document": {
       const parsed = parseAdminUrl(args.admin_url);
       if (!parsed) {
-        return JSON.stringify({
-          error: "Invalid admin URL format. Expected https://mdshare.live/d/{id}?key=adm_{token}. Only admin URLs (adm_ prefix) are accepted — view/comment/edit share links cannot be registered.",
-        });
+        throw new Error("Invalid admin URL format. Expected https://mdshare.live/d/{id}?key=adm_{token}. Only admin URLs (adm_ prefix) are accepted — view/comment/edit share links cannot be registered.");
       }
-      // Verify against the live API before storing
       const verify = await callApi(
         `/api/d/${parsed.documentId}?key=${parsed.adminKey}`,
         { headers: { Accept: "application/json" } }
       );
       if (verify.status !== 200 || typeof verify.data !== "object") {
-        return JSON.stringify({
-          error: `Verification failed (HTTP ${verify.status}). The document may have expired, been deleted, or the admin key may be wrong. Not stored.`,
-        });
+        throw new Error(`Verification failed (HTTP ${verify.status}). The document may have expired, been deleted, or the admin key may be wrong. Not stored.`);
       }
       const docData = verify.data;
-      // Merge with existing record (if any) so re-registering a doc that was
-      // previously uploaded via upload_markdown doesn't clobber its share_url,
-      // share_permission, or the original ISO-format created_at.
       const existing = await findDoc(parsed.documentId);
       const title = docData.title || existing?.title || extractTitleFromMarkdown(docData.content || "", "Untitled");
       const record = {
@@ -630,10 +757,7 @@ async function handleTool(name, args) {
       try {
         await addDoc(record);
       } catch (err) {
-        return JSON.stringify({
-          error: "Failed to write to local store",
-          storage_error: err.message,
-        });
+        throw new Error(`Failed to write to local store: ${err.message}`);
       }
       return JSON.stringify({
         document_id: record.id,
@@ -645,15 +769,18 @@ async function handleTool(name, args) {
     }
 
     default:
-      return JSON.stringify({ error: `Unknown tool: ${name}` });
+      throw new Error(`Unknown tool: ${name}`);
   }
 }
 
 // ---------- Server setup ----------
 
 const server = new Server(
-  { name: "mdshare", version: "1.3.0" },
-  { capabilities: { tools: {} } }
+  { name: "mdshare", version: "1.4.0" },
+  {
+    capabilities: { tools: {} },
+    instructions: SERVER_INSTRUCTIONS,
+  }
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -667,7 +794,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return { content: [{ type: "text", text: result }] };
   } catch (error) {
     return {
-      content: [{ type: "text", text: `Error: ${error.message}` }],
+      content: [{ type: "text", text: JSON.stringify({ error: error.message }) }],
       isError: true,
     };
   }

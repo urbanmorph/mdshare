@@ -17,6 +17,7 @@ MCP setup: https://mdshare.live/docs#use-with-ai
 Upload: POST /api/documents (Content-Type: text/markdown, body: raw markdown)
 Read: GET /api/d/{id}?key={key} (Accept: text/markdown for raw)
 Update: PUT /api/d/{id}?key={edit_key} (Content-Type: text/markdown, X-Author: name)
+Patch: PATCH /api/d/{id}?key={edit_key} (Content-Type: application/json, body: {operations: [{find, replace, replace_all?}], author?}) — partial update, preferred for small edits to large docs
 Links: POST /api/d/{id}/links?key={admin_key} (body: {permission, label, expires_at})
 Comments: POST /api/d/{id}/comments?key={key} (body: {content, author_name, anchor_text, parent_id}). Replies nest one level.
 Versions: GET /api/d/{id}/versions?key={key}
