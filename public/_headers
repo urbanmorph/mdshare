@@ -1,0 +1,14 @@
+# Security headers for static assets served directly from Cloudflare CDN.
+# Dynamic routes (API, /d/[id]) go through src/worker.ts which sets the
+# same headers — this file covers the prerendered pages that bypass the
+# worker (homepage, /docs, llms.txt, og.png, etc).
+#
+# Keep the header values identical to src/worker.ts so static + dynamic
+# responses are consistent.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https: data:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' wss: https:; frame-ancestors 'none'
