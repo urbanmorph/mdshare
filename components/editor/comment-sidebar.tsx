@@ -46,6 +46,10 @@ export function CommentSidebar({
   onClosePanel,
 }: CommentSidebarProps) {
   const selectedText = pendingAnchor?.text ?? "";
+  const submitKey =
+    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+      ? "⌘↵"
+      : "Ctrl+↵";
   const [newComment, setNewComment] = useState("");
   const [posting, setPosting] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
@@ -219,10 +223,16 @@ export function CommentSidebar({
             ref={textareaRef}
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                e.preventDefault();
+                if (newComment.trim() && !posting) postComment();
+              }
+            }}
             placeholder={
               selectedText
-                ? "Comment on selected text..."
-                : "Add a comment..."
+                ? `Comment on selected text... (${submitKey} to post)`
+                : `Add a comment... (${submitKey} to post)`
             }
             rows={3}
             className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-300 placeholder-neutral-600 resize-none mb-2 touch-manipulation"
@@ -367,7 +377,13 @@ export function CommentSidebar({
                       autoFocus
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
-                      placeholder={`Reply to ${comment.author_name}...`}
+                      onKeyDown={(e) => {
+                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                          e.preventDefault();
+                          if (replyText.trim() && !posting) postReply(comment.id);
+                        }
+                      }}
+                      placeholder={`Reply to ${comment.author_name}... (${submitKey} to send)`}
                       rows={2}
                       className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-300 placeholder-neutral-600 resize-none mb-1 touch-manipulation"
                     />
