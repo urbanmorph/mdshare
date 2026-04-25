@@ -230,7 +230,7 @@ export default function Home() {
 
   return (
     <main className="flex-1 flex items-center justify-center p-4 sm:p-8">
-      <div className="w-full max-w-xl space-y-6">
+      <div className="w-full max-w-2xl space-y-6">
         <div className="text-center">
           <h1 className="text-3xl sm:text-4xl font-bold text-white">
             md<span className="text-indigo-400">share</span>
