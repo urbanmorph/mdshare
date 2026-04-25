@@ -26,13 +26,36 @@ const description = "mdshare is free markdown sharing with link-based access, fo
 
         <p class="lead">
           mdshare is free markdown sharing — upload a document, get a link, share it with people
-          or AI clients. No account, no login, no cost.
+          or AI clients. No account, no login, free.
         </p>
 
         <p>
           The design goal is a zero-friction path from "I have some markdown" to "here's a link
           to it." Every feature is judged against the minimal flow: paste and go. If a feature
           needs explanation, it didn't earn its place.
+        </p>
+
+        <hr />
+
+        <h2 id="why">Why I built this</h2>
+
+        <p>
+          I'm Sathya. I'm not a developer — I'm a director at Urban Morph, a consulting firm
+          building tools like <a href="https://altmo.app" target="_blank" rel="noopener" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">Altmo</a>
+          to solve mobility in cities. I write a lot of project documents as markdown using AI
+          agents, and sharing them was somehow the hardest part. The workflow looked like: draft
+          in Claude Code, convert to DOCX, upload to Drive, share the link, wait for comments,
+          download the edits, feed it back to the agent. Seven steps to share a text file.
+        </p>
+
+        <p>
+          HackMD needed a login. Other tools wouldn't take an upload, or needed accounts, or
+          couldn't talk to an AI client. I just wanted to share markdown and let people review it.
+        </p>
+
+        <p>
+          So I built it, and added an MCP server the next day so my AI client could upload docs
+          directly instead of pasting markdown into a chat.
         </p>
 
         <hr />
@@ -120,13 +143,25 @@ const description = "mdshare is free markdown sharing with link-based access, fo
         <hr />
 
         <h2 id="contact">Built by</h2>
-        <p>
-          Sathya Sankaran · <a href="mailto:contact@urbanmorph.com" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">contact@urbanmorph.com</a>
-        </p>
-        <p class="text-sm text-neutral-500">
-          Source on <a href="https://github.com/urbanmorph/mdshare" target="_blank" rel="noopener" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">GitHub</a>.
-          Drop a ⭐ if you find it useful.
-        </p>
+        <div class="flex items-center gap-4">
+          <img
+            src="https://github.com/urbanmorph.png"
+            alt="Sathya Sankaran"
+            width="64"
+            height="64"
+            loading="lazy"
+            class="w-16 h-16 rounded-full border border-neutral-800"
+          />
+          <div>
+            <p class="m-0">
+              <a href="https://www.sathyasankaran.com" target="_blank" rel="noopener" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">Sathya Sankaran</a> · <a href="https://www.linkedin.com/in/sathyasankaran/" target="_blank" rel="noopener" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">LinkedIn</a>
+            </p>
+            <p class="text-sm text-neutral-500 m-0">
+              Source on <a href="https://github.com/urbanmorph/mdshare" target="_blank" rel="noopener" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">GitHub</a>.
+              Drop a ⭐ if you find it useful.
+            </p>
+          </div>
+        </div>
 
         <hr />
 
