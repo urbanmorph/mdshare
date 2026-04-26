@@ -87,7 +87,7 @@ export function TiptapEditor({
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        const md = (editor.storage as Record<string, any>).markdown.getMarkdown();
+        const md = (editor.storage as unknown as { markdown: { getMarkdown: () => string } }).markdown.getMarkdown();
         onUpdate(md);
       }, 1000);
     },
@@ -96,8 +96,11 @@ export function TiptapEditor({
   // Sync comment anchors into the extension storage and trigger redecoration
   useEffect(() => {
     if (!editor) return;
-    (editor.storage as Record<string, any>).commentHighlight.anchors = commentAnchors;
-    (editor.storage as Record<string, any>).commentHighlight.activeCommentId = activeCommentId;
+    const storage = editor.storage as unknown as {
+      commentHighlight: { anchors: CommentAnchor[]; activeCommentId: string | null };
+    };
+    storage.commentHighlight.anchors = commentAnchors;
+    storage.commentHighlight.activeCommentId = activeCommentId;
     // Force a transaction to re-run the plugin's apply
     editor.view.dispatch(editor.state.tr);
   }, [editor, commentAnchors, activeCommentId]);

@@ -146,15 +146,8 @@ export const CommentHighlight = Extension.create({
               if (idx === -1) continue;
 
               // Map back to document positions, skipping sentinel positions (-1)
-              // We need to find real character positions for the match range
-              const realCharIndex = 0;
               let startDocPos = -1;
               let endDocPos = -1;
-
-              // Walk through the original fullText to map normalized index to positions
-              const normalizedIdx = 0;
-              const matchStart = -1;
-              const matchEnd = -1;
 
               // Rebuild the normalized-to-original index mapping
               const origChars: { char: string; posIdx: number }[] = [];
@@ -163,7 +156,6 @@ export const CommentHighlight = Extension.create({
               }
 
               // Normalize and track positions
-              const normI = 0;
               let inWhitespace = false;
               const normToOrig: number[] = []; // normToOrig[normalizedIndex] = original index
 
