@@ -10,7 +10,7 @@ export async function broadcastUpdate(
   contentHash: string
 ): Promise<void> {
   try {
-    const doBinding = (env as Record<string, any>).DOCUMENT_WS as DurableObjectNamespace;
+    const doBinding = (env as { DOCUMENT_WS?: DurableObjectNamespace }).DOCUMENT_WS;
     if (!doBinding) return;
 
     const doId = doBinding.idFromName(documentId);

@@ -1,4 +1,4 @@
-import { hashToken, tokenPrefix, verifyToken } from "./tokens";
+import { tokenPrefix, verifyToken } from "./tokens";
 import type { Permission } from "./tokens";
 
 export interface ResolvedPermission {
