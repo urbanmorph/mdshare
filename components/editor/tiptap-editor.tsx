@@ -89,7 +89,7 @@ export function TiptapEditor({
       debounceRef.current = setTimeout(() => {
         const md = (editor.storage as unknown as { markdown: { getMarkdown: () => string } }).markdown.getMarkdown();
         onUpdate(md);
-      }, 1000);
+      }, 3000);
     },
   });
 
