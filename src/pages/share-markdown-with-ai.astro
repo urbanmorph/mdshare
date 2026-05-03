@@ -15,7 +15,7 @@ const faqSchema = {
       "name": "What is MCP?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "MCP (Model Context Protocol) is an open standard from Anthropic that lets AI clients like Claude, Cursor, and Windsurf talk to external tools and services. mdshare ships an MCP server so any MCP-compatible AI can upload markdown, read it back, edit it, and share links — all from inside the chat."
+        "text": "MCP (Model Context Protocol) is an open standard from Anthropic that lets AI clients talk to external tools. Think of it as 'USB for LLMs' — one plug shape, any tool. mdshare ships an MCP server so any compatible AI can share markdown without custom integration work."
       }
     },
     {
@@ -23,7 +23,7 @@ const faqSchema = {
       "name": "Do I need an API key to use mdshare with Claude?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "No. mdshare has no account or auth system. The MCP server runs locally on your machine, and each document it creates comes with its own shareable link. No tokens, no signups, no keys to manage."
+        "text": "No. mdshare has no account, no auth system, no keys to manage. Each document the MCP server creates is its own sharable artifact with its own link."
       }
     },
     {
@@ -31,7 +31,7 @@ const faqSchema = {
       "name": "Which AI clients support mdshare?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Claude Desktop, Claude Code, Cursor, Windsurf, OpenAI Codex CLI, Google Gemini CLI, and any MCP-compatible client. The same npx mdshare-mcp install works across all of them — you just point the client's config file at it."
+        "text": "Claude Desktop, Claude Code, Cursor, Windsurf, OpenAI Codex CLI (ChatGPT), Google Gemini CLI, and anything else that implements the MCP spec. Configuration is identical across clients — the only difference is which JSON file you paste into."
       }
     },
     {
@@ -47,7 +47,7 @@ const faqSchema = {
       "name": "Is this an alternative to pasting markdown into the chat?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes. Instead of pasting 2000 lines of markdown into a Claude prompt (burning context) or asking the model to regenerate a long document each time, mdshare lets the model upload once and reference by link. Edits happen by patching, not re-sending the whole file."
+        "text": "That's the main use case. Pasting a long markdown file into Claude burns context tokens and forces the model to work against a snapshot. With mdshare, the model uploads once, works against a live URL, and applies patches instead of rewriting. Your context stays clean and the document is shareable with any teammate."
       }
     },
     {
@@ -55,7 +55,15 @@ const faqSchema = {
       "name": "What happens on the server?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "The MCP server is a thin npm package that talks to mdshare.live over HTTPS. Your content lives on Cloudflare's D1 (SQLite). No tracking, no auth, no analytics account required on your side."
+        "text": "Content lives on Cloudflare D1 (SQLite), served through a Cloudflare Worker. No third-party analytics, no tracking, no auth database. The MCP server is a thin npm package that talks to mdshare.live over HTTPS."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What about privacy?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Content is sanitized server-side but otherwise stored as-is. Anyone with a share link can access the document at that permission tier. Don't upload anything sensitive — this is a paste-and-share service, not an encrypted vault."
       }
     }
   ]
@@ -231,31 +239,38 @@ const faqSchema = {
           without custom integration work.
         </p>
 
-        <h3>Do I need an API key?</h3>
+        <h3>Do I need an API key to use mdshare with Claude?</h3>
         <p>
           No. mdshare has no account, no auth system, no keys to manage. Each document the MCP
           server creates is its own sharable artifact with its own link.
         </p>
 
-        <h3>Which AI clients support this?</h3>
+        <h3>Which AI clients support mdshare?</h3>
         <p>
           Claude Desktop, Claude Code, Cursor, Windsurf, OpenAI Codex CLI (ChatGPT), Google Gemini
           CLI, and anything else that implements the MCP spec. Configuration is identical across
           clients — the only difference is which JSON file you paste into.
         </p>
 
-        <h3>Where does the content live?</h3>
+        <h3>How long do documents last?</h3>
         <p>
-          On Cloudflare D1 (SQLite), served through a Cloudflare Worker. No third-party analytics,
-          no tracking, no auth database. Content expires after 90 days.
+          Ninety days from creation. After that they expire and are deleted. Not built for
+          permanent storage — built for fast, ephemeral sharing.
         </p>
 
-        <h3>Is this an alternative to copy-pasting into the chat?</h3>
+        <h3>Is this an alternative to pasting markdown into the chat?</h3>
         <p>
           That's the main use case. Pasting a long markdown file into Claude burns context tokens
           and forces the model to work against a snapshot. With mdshare, the model uploads once,
           works against a live URL, and applies patches instead of rewriting. Your context stays
           clean and the document is shareable with any teammate.
+        </p>
+
+        <h3>What happens on the server?</h3>
+        <p>
+          Content lives on Cloudflare D1 (SQLite), served through a Cloudflare Worker. No
+          third-party analytics, no tracking, no auth database. The MCP server is a thin npm
+          package that talks to mdshare.live over HTTPS.
         </p>
 
         <h3>What about privacy?</h3>

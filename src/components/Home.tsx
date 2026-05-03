@@ -232,12 +232,12 @@ export default function Home() {
     <main className="flex-1 flex items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-2xl space-y-6">
         <div className="text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold text-white">
+          <p className="text-3xl sm:text-4xl font-bold text-white">
             md<span className="text-indigo-400">share</span>
-          </h1>
-          <p className="mt-2 text-neutral-300">
-            Share markdown instantly. Free. No login required.
           </p>
+          <h1 className="mt-2 text-neutral-300 text-base font-normal">
+            Share markdown instantly. Free. No login required.
+          </h1>
           <p className="mt-1 text-sm text-neutral-400">
             Share markdown files with Claude, ChatGPT, Cursor, and Windsurf via MCP.
           </p>
