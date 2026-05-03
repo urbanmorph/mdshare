@@ -1,0 +1,20 @@
+{
+  "name": "urbanmorph",
+  "interface": {
+    "displayName": "UrbanMorph"
+  },
+  "plugins": [
+    {
+      "name": "mdshare",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex/mdshare"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
