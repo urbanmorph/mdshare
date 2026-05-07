@@ -141,6 +141,10 @@ export function createExports(manifest: SSRManifest) {
           "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https: data:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' wss: https:; frame-ancestors 'none'"
         );
 
+        if (url.pathname.startsWith("/d/")) {
+          headers.set("X-Robots-Tag", "noindex, nofollow");
+        }
+
         return new Response(response.body, {
           status: response.status,
           statusText: response.statusText,

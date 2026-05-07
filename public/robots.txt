@@ -9,6 +9,5 @@ Allow: /install-mdshare-plugin
 Allow: /llms.txt
 
 Disallow: /api/
-Disallow: /d/
 
 Sitemap: https://mdshare.live/sitemap.xml
