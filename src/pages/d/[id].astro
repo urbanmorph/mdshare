@@ -50,7 +50,7 @@ const title = `${doc!.title || "Untitled"} — mdshare`;
 const description = `${doc!.title || "Untitled"} — shared via mdshare`;
 ---
 
-<Layout title={title} description={description} ogType="article">
+<Layout title={title} description={description} ogType="article" canonical={Astro.url.href}>
   <DocumentView
     document={doc!}
     permission={permission as Permission}
