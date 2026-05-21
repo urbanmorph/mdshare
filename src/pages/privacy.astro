@@ -13,7 +13,7 @@ const schema = {
   "url": "https://mdshare.live/privacy",
   "description": description,
   "datePublished": "2026-05-03",
-  "dateModified": "2026-05-03",
+  "dateModified": "2026-05-21",
   "isPartOf": {
     "@type": "WebSite",
     "url": "https://mdshare.live",
@@ -41,7 +41,7 @@ const schema = {
       <div class="prose-docs">
         <h1>Privacy Policy</h1>
 
-        <p class="text-sm text-neutral-500">Effective 2026-05-03 · Last updated 2026-05-03</p>
+        <p class="text-sm text-neutral-500">Effective 2026-05-03 · Last updated 2026-05-21</p>
 
         <p class="lead">
           mdshare is a free markdown sharing service. No accounts, no login, minimal data — and what little we collect is described in full below.
@@ -54,6 +54,7 @@ const schema = {
           <li><strong>Markdown content you upload</strong> — the document body, stored on Cloudflare D1.</li>
           <li><strong>Comments anyone posts</strong> on a document, with the display name they choose. Comments default to "Anonymous" if no name is provided.</li>
           <li><strong>IP address and user agent</strong>, transiently logged via Cloudflare for abuse detection. Subject to Cloudflare's standard retention policy.</li>
+          <li><strong>Integration name and version</strong> — our official integrations (VS Code extension, Obsidian plugin, MCP server, etc.) send a <code>User-Agent: mdshare-&lt;integration&gt;/&lt;version&gt;</code> header on upload requests so we can attribute traffic by integration. Aggregate counts only — no personal identifiers.</li>
           <li><strong>Aggregate page-view counts</strong> via Cloudflare Web Analytics — no personal identifiers, no cross-site tracking, no cookies.</li>
         </ul>
 
