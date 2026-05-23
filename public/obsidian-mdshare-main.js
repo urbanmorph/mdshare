@@ -64,14 +64,18 @@ var MdsharePlugin = class extends import_obsidian.Plugin {
       new import_obsidian.Notice("File is empty.");
       return;
     }
-    await this.uploadContent(content);
+    await this.uploadContent(content, file.basename);
   }
-  async uploadContent(content) {
+  async uploadContent(content, title) {
     try {
+      const headers = {
+        "Content-Type": "text/plain"
+      };
+      if (title) headers["X-Title"] = encodeURIComponent(title);
       const res = await (0, import_obsidian.requestUrl)({
         url: API_URL,
         method: "POST",
-        contentType: "text/plain",
+        headers,
         body: content
       });
       const { admin_url } = res.json;
