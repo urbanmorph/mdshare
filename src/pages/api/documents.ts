@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { nanoid } from "nanoid";
 import { getDB } from "../../../lib/db";
 import { generateToken, hashToken, tokenPrefix } from "../../../lib/tokens";
-import { sanitizeMarkdown, contentHash, validateIsText } from "../../../lib/sanitize";
+import { sanitizeMarkdown, contentHash, validateIsText, sanitizeTitle } from "../../../lib/sanitize";
 import { checkRateLimit, rateLimitResponse } from "../../../lib/rate-limit";
 import { incrementStat } from "../../../lib/stats";
 
@@ -82,6 +82,20 @@ export const POST: APIRoute = async ({ request }) => {
   const headingMatch = rawContent.match(/^#\s+(.+)$/m);
   if (headingMatch) {
     title = headingMatch[1].trim();
+  } else {
+    // Integrations can supply a title hint via X-Title (percent-encoded for
+    // safe transport of unicode). Only used when the body has no H1.
+    const rawTitle = request.headers.get("x-title");
+    if (rawTitle) {
+      let decoded: string;
+      try {
+        decoded = decodeURIComponent(rawTitle);
+      } catch {
+        decoded = rawTitle;
+      }
+      const t = sanitizeTitle(decoded);
+      if (t) title = t;
+    }
   }
 
   const tSanitize = Date.now();

@@ -203,6 +203,25 @@ function isAllowedUrl(url: string): boolean {
   }
 }
 
+const MAX_TITLE_LENGTH = 200;
+
+/**
+ * Sanitize a title supplied via an X-Title header. Strips dangerous Unicode and
+ * control characters, collapses whitespace, caps length. Returns empty string
+ * if nothing usable remains.
+ */
+export function sanitizeTitle(input: string): string {
+  let s = input
+    .replace(DANGEROUS_CONTROL_CHARS, "")
+    .replace(BIDI_CHARS, "")
+    .replace(ZERO_WIDTH_CHARS, "")
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (s.length > MAX_TITLE_LENGTH) s = s.slice(0, MAX_TITLE_LENGTH).trim();
+  return s;
+}
+
 /**
  * Compute SHA-256 hash of content for change detection.
  */
