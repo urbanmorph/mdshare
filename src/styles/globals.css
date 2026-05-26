@@ -130,8 +130,8 @@ select:focus-visible {
 .prose-viewer h4 { font-size: 1rem; font-weight: 600; color: var(--ed-h3); margin: 1rem 0 0.4rem; }
 .tiptap p, .prose-viewer p { margin-bottom: 0.75rem; }
 .tiptap ul, .tiptap ol, .prose-viewer ul, .prose-viewer ol { margin: 0.5rem 0 0.75rem 1.25rem; }
-.prose-viewer ul { list-style: disc; }
-.prose-viewer ol { list-style: decimal; }
+.tiptap ul, .prose-viewer ul { list-style: disc; }
+.tiptap ol, .prose-viewer ol { list-style: decimal; }
 .tiptap li, .prose-viewer li { margin-bottom: 0.25rem; }
 .prose-viewer li > ul, .prose-viewer li > ol { margin-top: 0.25rem; }
 .tiptap blockquote, .prose-viewer blockquote { border-left: 3px solid #6366f1; padding-left: 1rem; color: var(--ed-quote); margin: 0.75rem 0; }
