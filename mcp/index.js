@@ -10,6 +10,7 @@ import { readFile, writeFile, mkdir, chmod } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+const VERSION = "1.4.1";
 const BASE_URL = "https://mdshare.live";
 const STORE_DIR = join(homedir(), ".mdshare-mcp");
 const STORE_PATH = join(STORE_DIR, "documents.json");
@@ -98,6 +99,7 @@ async function callApi(path, options = {}) {
     ...options,
     headers: {
       "Content-Type": options.contentType || "application/json",
+      "User-Agent": `mdshare-mcp/${VERSION}`,
       ...(options.headers || {}),
     },
   });
