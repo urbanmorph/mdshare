@@ -61,14 +61,41 @@ const ogImage = `${siteUrl}/og.png`;
     <!-- JSON-LD -->
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "mdshare",
-      "url": siteUrl,
-      "description": "Free markdown sharing with MCP integration. Upload, get a link, collaborate. Works with Claude, ChatGPT, Gemini, Cursor, Windsurf.",
-      "applicationCategory": "Productivity",
-      "operatingSystem": "Any",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-      "keywords": "markdown, sharing, MCP, model context protocol, collaboration, free, VS Code, Obsidian, link revocation, real-time, WebSocket"
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": `${siteUrl}/#organization`,
+          "name": "mdshare",
+          "url": siteUrl,
+          "logo": `${siteUrl}/logo.svg`,
+          "sameAs": [
+            "https://github.com/urbanmorph/mdshare",
+            "https://www.npmjs.com/package/mdshare-mcp",
+            "https://glama.ai/mcp/servers/urbanmorph/mdshare",
+            "https://cursor.directory/plugins/mdshare",
+            "https://community.obsidian.md/plugins/mdshare"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": `${siteUrl}/#website`,
+          "name": "mdshare",
+          "alternateName": ["md share", "mdshare.live"],
+          "url": siteUrl,
+          "publisher": { "@id": `${siteUrl}/#organization` }
+        },
+        {
+          "@type": "WebApplication",
+          "name": "mdshare",
+          "url": siteUrl,
+          "description": "Free markdown sharing with MCP integration. Upload, get a link, collaborate. Works with Claude, ChatGPT, Gemini, Cursor, Windsurf.",
+          "applicationCategory": "Productivity",
+          "operatingSystem": "Any",
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+          "publisher": { "@id": `${siteUrl}/#organization` },
+          "keywords": "markdown, sharing, MCP, model context protocol, collaboration, free, VS Code, Obsidian, link revocation, real-time, WebSocket"
+        }
+      ]
     })} />
   </head>
   <body class="min-h-full flex flex-col bg-neutral-950 text-neutral-200" style="font-family: 'Geist', system-ui, sans-serif;">
