@@ -44,6 +44,7 @@ export function MarkdownViewer({ content, className = "" }: MarkdownViewerProps)
     <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6" id="editor-scroll-container">
         <div
+          dir="auto"
           className={`prose-viewer ${className}`}
           dangerouslySetInnerHTML={{ __html: html }}
         />

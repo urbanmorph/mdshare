@@ -79,6 +79,10 @@ export function TiptapEditor({
     editable,
     editorProps: {
       attributes: {
+        // dir="auto" lets the browser pick base direction per the first strong
+        // character — RTL content (Arabic/Hebrew) right-aligns correctly, LTR is
+        // unaffected. No UI, no language detection.
+        dir: "auto",
         class: `prose prose-invert prose-sm max-w-none focus:outline-none ${className}`,
       },
     },
