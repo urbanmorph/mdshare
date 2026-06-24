@@ -4,6 +4,9 @@ interface Props {
   description?: string;
   ogType?: string;
   canonical?: string;
+  lang?: string;
+  ogLocale?: string;
+  fontHref?: string;
 }
 
 const {
@@ -11,6 +14,9 @@ const {
   description = "Share markdown files with Claude, ChatGPT, Cursor, and Windsurf via MCP. Upload, get a shareable link, collaborate in real-time. No login, no accounts, no cost.",
   ogType = "website",
   canonical,
+  lang = "en",
+  ogLocale = "en_US",
+  fontHref,
 } = Astro.props;
 
 const siteUrl = "https://mdshare.live";
@@ -18,7 +24,7 @@ const ogImage = `${siteUrl}/og.png`;
 ---
 
 <!doctype html>
-<html lang="en" class="h-full antialiased dark">
+<html lang={lang} class="h-full antialiased dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -39,6 +45,7 @@ const ogImage = `${siteUrl}/og.png`;
     <meta property="og:site_name" content="mdshare" />
     <meta property="og:type" content={ogType} />
     <meta property="og:url" content={canonical ?? siteUrl} />
+    <meta property="og:locale" content={ogLocale} />
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -57,6 +64,8 @@ const ogImage = `${siteUrl}/og.png`;
       href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap"
       rel="stylesheet"
     />
+    {/* Per-doc script font (RTL/CJK/Cyrillic/etc.) — only foreign docs load one. */}
+    {fontHref && <link href={fontHref} rel="stylesheet" />}
 
     <!-- JSON-LD -->
     <script type="application/ld+json" set:html={JSON.stringify({
@@ -98,7 +107,7 @@ const ogImage = `${siteUrl}/og.png`;
       ]
     })} />
   </head>
-  <body class="min-h-full flex flex-col bg-neutral-950 text-neutral-200" style="font-family: 'Geist', system-ui, sans-serif;">
+  <body class="min-h-full flex flex-col bg-neutral-950 text-neutral-200" style="font-family: 'Geist', 'Noto Sans', 'Noto Naskh Arabic', 'Noto Sans Hebrew', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans KR', 'Noto Sans Devanagari', 'Noto Sans Thai', system-ui, sans-serif;">
     <slot />
     <!-- Cloudflare Web Analytics. Auto-install is set in the dashboard but
          doesn't inject for Worker-served responses — this tag is the path. -->
