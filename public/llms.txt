@@ -1,70 +1,56 @@
 # mdshare
-> Free markdown sharing with MCP integration. Upload, get a link, collaborate. No login needed.
 
-## MCP Server
-Package: npx mdshare-mcp
-Registry: io.github.sathya-sankaran/mdshare
-Works with: Claude, ChatGPT/Codex, Gemini CLI, Cursor, Windsurf
-Extensions: VS Code (Marketplace), Obsidian (Community Plugins — search "mdshare")
-Tools: upload_markdown, read_document, update_document, patch_document, generate_link, list_links, revoke_link, list_comments, post_comment, resolve_comment, get_versions, list_my_documents, get_admin_url, register_document
+> Free markdown sharing with MCP integration. Upload markdown, get a shareable link, collaborate in real time. No login, no accounts, no cost.
 
-## Claude Code Plugin
-Marketplace: urbanmorph (self-marketplace at github.com/urbanmorph/mdshare)
-Install: /plugin marketplace add urbanmorph/mdshare && /plugin install mdshare@urbanmorph
-Skill: mdshare-tools (auto-invocable on "share this markdown", "publish my notes", "give me a link for this doc")
-Setup guide: https://mdshare.live/install-mdshare-plugin
-Source: https://github.com/urbanmorph/mdshare/tree/main/plugins/claude-code
+mdshare turns any markdown into a shareable link. The primary interface is the MCP server (`npx mdshare-mcp`), which works with Claude, ChatGPT/Codex, Gemini CLI, Cursor, and Windsurf. MCP tools: `upload_markdown`, `read_document`, `update_document`, `patch_document`, `generate_link`, `list_links`, `revoke_link`, `list_comments`, `post_comment`, `resolve_comment`, `get_versions`, `list_my_documents`, `get_admin_url`, `register_document`. The bundled `mdshare-tools` skill auto-invokes on prompts like "share this markdown", "publish my notes", or "give me a link for this doc".
 
-## Cursor Plugin
-Listing: https://cursor.directory/plugins/mdshare
-Install: Click "Add to Cursor" on the directory listing
-Manual setup: paste {"mcpServers":{"mdshare":{"command":"npx","args":["-y","mdshare-mcp"]}}} into ~/.cursor/mcp.json
-Skill: mdshare-tools (auto-invocable on the same phrases as the Claude Code plugin)
-Source: https://github.com/urbanmorph/mdshare/tree/main/plugins/mdshare-cursor
+## MCP server
 
-## Obsidian Plugin
-Listing: https://community.obsidian.md/plugins/mdshare
-Install: Obsidian → Settings → Community Plugins → Browse → search "mdshare" → Install → Enable
-Usage: right-click any .md file → "Share on mdshare" (admin URL copied to clipboard). Selection sharing and command palette ("mdshare: Share current file") also supported.
-Source: https://github.com/urbanmorph/obsidian-mdshare
+- [mdshare-mcp on npm](https://www.npmjs.com/package/mdshare-mcp): install and run with `npx mdshare-mcp` (registry id `io.github.sathya-sankaran/mdshare`)
+- [MCP setup guide](https://mdshare.live/share-markdown-with-ai): connect Claude, ChatGPT, Gemini CLI, Cursor, or Windsurf
+
+## Plugins
+
+- [Claude Code plugin setup](https://mdshare.live/install-mdshare-plugin): `/plugin marketplace add urbanmorph/mdshare && /plugin install mdshare@urbanmorph`
+- [Claude Code plugin source](https://github.com/urbanmorph/mdshare/tree/main/plugins/claude-code)
+- [Cursor plugin listing](https://cursor.directory/plugins/mdshare): click "Add to Cursor", or paste `{"mcpServers":{"mdshare":{"command":"npx","args":["-y","mdshare-mcp"]}}}` into `~/.cursor/mcp.json`
+- [Cursor plugin source](https://github.com/urbanmorph/mdshare/tree/main/plugins/mdshare-cursor)
+- [Obsidian plugin listing](https://community.obsidian.md/plugins/mdshare): right-click any `.md` file → "Share on mdshare"
+- [Obsidian plugin source](https://github.com/urbanmorph/obsidian-mdshare)
 
 ## API
-Base URL: https://mdshare.live
-Documentation: https://mdshare.live/docs/raw
-MCP setup: https://mdshare.live/share-markdown-with-ai
-Convert + share workflows: https://mdshare.live/convert-and-share-markdown
-About: https://mdshare.live/about
 
-## Works with
-- markitdown (Microsoft) — convert PDF/DOCX/PPTX/XLSX/HTML/audio to markdown
-- pandoc — convert LaTeX/EPUB/RST/org/Jupyter to markdown
-- Docling (IBM) — RAG-focused PDF/DOCX/PPTX/HTML conversion with table recovery
-- Marker — fast, accurate PDF to markdown for LLM ingestion
-- Firecrawl — scrape any URL to clean markdown
-- Jina Reader — free URL to markdown via r.jina.ai/{url}
-- One-liner pattern: `<converter> file | curl -X POST -H "Content-Type: text/markdown" --data-binary @- https://mdshare.live/api/documents`
-- mdshare is the sharing layer; conversion happens upstream. Same pattern for any tool that emits markdown.
-- Workflow guide: https://mdshare.live/convert-and-share-markdown
+- [REST API reference](https://mdshare.live/docs/raw): full endpoint docs, base URL `https://mdshare.live`
+- [MCP setup](https://mdshare.live/share-markdown-with-ai): use mdshare from an AI client
+- [About mdshare](https://mdshare.live/about): what mdshare is and who it is for
 
-## Quick Start
-Upload: POST /api/documents (Content-Type: text/markdown, body: raw markdown)
-Read: GET /api/d/{id}?key={key} (Accept: text/markdown for raw)
-Update: PUT /api/d/{id}?key={edit_key} (Content-Type: text/markdown, X-Author: name)
-Patch: PATCH /api/d/{id}?key={edit_key} (Content-Type: application/json, body: {operations: [{find, replace, replace_all?}], author?}) — partial update, preferred for small edits to large docs
-Links: POST /api/d/{id}/links?key={admin_key} (body: {permission, label, expires_at})
-Comments: POST /api/d/{id}/comments?key={key} (body: {content, author_name, anchor_text, parent_id}). Replies nest one level.
-Versions: GET /api/d/{id}/versions?key={key}
-Presence: POST /api/d/{id}/presence?key={key} (body: {session_id, name})
+Quick reference:
 
-## Permissions
-adm_ = full control | edt_ = read+write | cmt_ = read+comment | viw_ = read only
+- Upload: `POST /api/documents` (Content-Type: text/markdown, body: raw markdown)
+- Read: `GET /api/d/{id}?key={key}` (Accept: text/markdown for raw)
+- Update: `PUT /api/d/{id}?key={edit_key}` (Content-Type: text/markdown, X-Author: name)
+- Patch: `PATCH /api/d/{id}?key={edit_key}` (JSON `{operations:[{find,replace,replace_all?}], author?}`) — preferred for small edits to large docs
+- Links: `POST /api/d/{id}/links?key={admin_key}` (`{permission, label, expires_at}`)
+- Comments: `POST /api/d/{id}/comments?key={key}` (`{content, author_name, anchor_text, parent_id}`) — replies nest one level
+- Versions: `GET /api/d/{id}/versions?key={key}`
+- Presence: `POST /api/d/{id}/presence?key={key}` (`{session_id, name}`)
+- Permissions: `adm_` full control · `edt_` read+write · `cmt_` read+comment · `viw_` read only
+- Limits: 90-day expiry · 10 creates/min, 50/day per IP · 30 updates/min · 20 comments/min · max 50 links/doc · max 10MB · 429 includes Retry-After · expired docs return 410 Gone
 
-## Limits
-- Documents expire in 90 days (expires_at in create response)
-- 10 creates per minute, 50 per day per IP
-- 30 updates per minute per IP
-- 20 comments per minute per IP
-- Max 50 share links per document (excluding admin link)
-- Max document size: 10MB
-- 429 responses include Retry-After header
-- Expired documents return 410 Gone
+## Convert then share
+
+mdshare is the sharing layer; conversion happens upstream. Pattern: `<converter> file | curl -X POST -H "Content-Type: text/markdown" --data-binary @- https://mdshare.live/api/documents`
+
+- [markitdown](https://github.com/microsoft/markitdown): PDF/DOCX/PPTX/XLSX/HTML/audio to markdown (Microsoft)
+- [pandoc](https://pandoc.org): LaTeX/EPUB/RST/org/Jupyter to markdown
+- [Docling](https://github.com/docling-project/docling): RAG-focused PDF/DOCX/PPTX/HTML conversion with table recovery (IBM)
+- [Marker](https://github.com/VikParuchuri/marker): fast, accurate PDF to markdown for LLM ingestion
+- [Firecrawl](https://www.firecrawl.dev): scrape any URL to clean markdown
+- [Jina Reader](https://jina.ai/reader): free URL to markdown via `r.jina.ai/{url}`
+- [Convert + share workflow guide](https://mdshare.live/convert-and-share-markdown): end-to-end conversion-then-share recipes
+
+## Optional
+
+- [Homepage](https://mdshare.live): upload from the browser
+- [GitHub: urbanmorph/mdshare](https://github.com/urbanmorph/mdshare): source and issues
+- [Privacy](https://mdshare.live/privacy): data handling and document expiry
