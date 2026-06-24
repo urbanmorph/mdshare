@@ -3,6 +3,7 @@ import Layout from "../../layouts/Layout.astro";
 import { DocumentView } from "../../components/DocumentView";
 import { getDB } from "../../../lib/db";
 import { resolveToken } from "../../../lib/permissions";
+import { detectScript } from "../../../lib/detect-script";
 import type { DocumentRow } from "../../../lib/db-types";
 import type { Permission } from "../../../lib/tokens";
 
@@ -48,9 +49,18 @@ if (notFound) {
 
 const title = `${doc!.title || "Untitled"} — mdshare`;
 const description = `${doc!.title || "Untitled"} — shared via mdshare`;
+const loc = detectScript(doc!.content || doc!.title || "");
 ---
 
-<Layout title={title} description={description} ogType="article" canonical={Astro.url.href}>
+<Layout
+  title={title}
+  description={description}
+  ogType="article"
+  canonical={Astro.url.href}
+  lang={loc.lang}
+  ogLocale={loc.ogLocale}
+  fontHref={loc.fontHref ?? undefined}
+>
   <DocumentView
     document={doc!}
     permission={permission as Permission}
