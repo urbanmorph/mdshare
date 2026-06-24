@@ -60,6 +60,7 @@ const loc = detectScript(doc!.content || doc!.title || "");
   lang={loc.lang}
   ogLocale={loc.ogLocale}
   fontHref={loc.fontHref ?? undefined}
+  ogImage={`${Astro.url.origin}/d/${id}/og.png?key=${encodeURIComponent(key!)}&v=${Date.parse(doc!.updated_at)}`}
 >
   <DocumentView
     document={doc!}

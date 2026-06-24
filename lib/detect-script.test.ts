@@ -39,6 +39,14 @@ for (const c of cases) {
   });
 }
 
+// Spec 2 needs the bare Google Fonts family (to fetch a subset for the OG card).
+test("exposes the Google Fonts family for OG subset fetching", () => {
+  assert.equal(detectScript("مرحبا بك").fontFamily, "Noto Naskh Arabic");
+  assert.equal(detectScript("技术规格").fontFamily, "Noto Sans SC");
+  assert.equal(detectScript("Техническая").fontFamily, "Noto Sans");
+  assert.equal(detectScript("Hello world").fontFamily, null);
+});
+
 // --- Edge cases ---
 
 test("mixed Arabic+English where Arabic dominates → arabic", () => {

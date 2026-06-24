@@ -16,6 +16,7 @@
   "dependencies": {
     "@astrojs/cloudflare": "12.6.13",
     "@astrojs/react": "4.4.2",
+    "@resvg/resvg-wasm": "^2.6.2",
     "@tiptap/extension-code-block-lowlight": "^3.22.0",
     "@tiptap/extension-link": "^3.22.0",
     "@tiptap/extension-placeholder": "^3.22.0",

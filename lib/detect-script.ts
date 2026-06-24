@@ -23,6 +23,7 @@ export interface LocaleInfo {
   lang: string; // coarse BCP-47
   ogLocale: string; // Open Graph locale, e.g. ar_AR
   fontHref: string | null; // Google Fonts <link> href, or null for latin (Geist already loaded)
+  fontFamily: string | null; // bare Google Fonts family (for OG subset fetch), null for latin
 }
 
 interface ScriptDef {
@@ -52,7 +53,7 @@ const SCRIPTS: ScriptDef[] = [
   { script: "greek", ranges: [[0x0370, 0x03ff]], dir: "ltr", lang: "el", ogLocale: "el_GR", fontFamily: "Noto Sans" },
 ];
 
-const LATIN: LocaleInfo = { script: "latin", dir: "ltr", lang: "en", ogLocale: "en_US", fontHref: null };
+const LATIN: LocaleInfo = { script: "latin", dir: "ltr", lang: "en", ogLocale: "en_US", fontHref: null, fontFamily: null };
 
 const SAMPLE_LEN = 2000;
 const THRESHOLD = 0.1; // dominant non-Latin script must be ≥10% of letters
@@ -115,5 +116,6 @@ export function detectScript(text: string): LocaleInfo {
     lang: winner.lang,
     ogLocale: winner.ogLocale,
     fontHref: googleFont(winner.fontFamily),
+    fontFamily: winner.fontFamily,
   };
 }
