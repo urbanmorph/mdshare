@@ -59,6 +59,13 @@ export class DocumentWebSocket extends DurableObject {
       const data = JSON.parse(message);
 
       if (data.type === "update") {
+        // Only edit/admin participants may push content changes. The permission
+        // was tagged onto this socket at accept time (see fetch()); without this
+        // check a view/comment-only token could broadcast arbitrary content to
+        // every other connected client. Default-deny if the tag is missing.
+        const [permission] = this.ctx.getTags(ws);
+        if (permission !== "edit" && permission !== "admin") return;
+
         // Broadcast to all OTHER connected clients
         for (const conn of this.ctx.getWebSockets()) {
           if (conn !== ws && conn.readyState === WebSocket.OPEN) {
