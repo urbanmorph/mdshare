@@ -163,8 +163,14 @@ export function createExports(manifest: SSRManifest) {
             "DELETE FROM documents WHERE expires_at IS NOT NULL AND expires_at < datetime('now')"
           )
           .run();
+        // Sweep expired rate-limit windows so the table stays bounded.
+        const rl = await env.DB
+          .prepare("DELETE FROM rate_limits WHERE reset_at < ?")
+          .bind(Date.now())
+          .run();
         console.warn(
-          `Cron cleanup: deleted ${result.meta?.changes || 0} expired documents`
+          `Cron cleanup: deleted ${result.meta?.changes || 0} expired documents, ` +
+            `${rl.meta?.changes || 0} stale rate-limit rows`
         );
       },
     } satisfies ExportedHandler<Env>,
