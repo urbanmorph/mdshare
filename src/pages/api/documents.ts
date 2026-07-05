@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import { getDB } from "../../../lib/db";
 import { generateToken, hashToken, tokenPrefix } from "../../../lib/tokens";
 import { sanitizeMarkdown, contentHash, validateIsText, sanitizeTitle } from "../../../lib/sanitize";
-import { checkRateLimit, rateLimitResponse } from "../../../lib/rate-limit";
+import { checkRateLimit, checkDurableRateLimit, rateLimitResponse } from "../../../lib/rate-limit";
 import { incrementStat } from "../../../lib/stats";
 
 export const prerender = false;
@@ -11,11 +11,17 @@ export const prerender = false;
 export const POST: APIRoute = async ({ request }) => {
   const t0 = Date.now();
   const ip = request.headers.get("cf-connecting-ip") || "unknown";
+  const db = getDB();
 
+  // Cheap first line: per-isolate burst guard (no DB hit).
   const burstLimit = checkRateLimit(ip, "create", { max: 10, windowSec: 60 });
   if (!burstLimit.allowed) return rateLimitResponse(burstLimit);
 
-  const dailyLimit = checkRateLimit(ip, "create-daily", { max: 50, windowSec: 86400 });
+  // Real backstop: durable, globally-coordinated daily cap. The in-memory
+  // limiter above is per-isolate, so it never held across Cloudflare's edge —
+  // a spam bot created 133 docs in a day past a nominal 50/day cap. This one
+  // is D1-backed, so 50/day/IP actually holds.
+  const dailyLimit = await checkDurableRateLimit(db, ip, "create-daily", { max: 50, windowSec: 86400 });
   if (!dailyLimit.allowed) {
     return Response.json(
       { error: "Daily document creation limit reached (50 per day). Try again tomorrow." },
@@ -28,7 +34,6 @@ export const POST: APIRoute = async ({ request }) => {
     );
   }
 
-  const db = getDB();
   let rawContent: string;
   let title = "Untitled";
 
