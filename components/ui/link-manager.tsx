@@ -16,11 +16,17 @@ interface LinkItem {
 interface LinkManagerProps {
   documentId: string;
   adminKey: string;
+  documentExpiresAt?: string | null;
 }
 
-export function LinkManager({ documentId, adminKey }: LinkManagerProps) {
+export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkManagerProps) {
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [docExpiry, setDocExpiry] = useState<string | null>(documentExpiresAt ?? null);
+  const [newDocExpiry, setNewDocExpiry] = useState("");
+  const [savingExpiry, setSavingExpiry] = useState(false);
+  const [expiryError, setExpiryError] = useState<string | null>(null);
+  const [expirySaved, setExpirySaved] = useState(false);
   const [newPerm, setNewPerm] = useState<"view" | "edit" | "comment">("view");
   const [newLabel, setNewLabel] = useState("");
   const [newExpiry, setNewExpiry] = useState("");
@@ -107,6 +113,39 @@ export function LinkManager({ documentId, adminKey }: LinkManagerProps) {
     }
   };
 
+  // datetime-local wants "YYYY-MM-DDTHH:mm" in the viewer's local time.
+  const toLocalInput = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const minExpiry = toLocalInput(new Date(Date.now() + 60_000));
+  const maxExpiry = toLocalInput(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000));
+
+  const updateExpiry = async () => {
+    if (!newDocExpiry) return;
+    setSavingExpiry(true);
+    setExpiryError(null);
+    try {
+      const iso = new Date(newDocExpiry).toISOString();
+      const res = await fetch(`/api/d/${documentId}/expiry?key=${adminKey}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expires_at: iso }),
+      });
+      const data = (await res.json()) as { expires_at?: string; error?: string };
+      if (!res.ok) {
+        setExpiryError(data.error || "Failed to update expiry");
+        return;
+      }
+      setDocExpiry(data.expires_at ?? iso);
+      setNewDocExpiry("");
+      setExpirySaved(true);
+      setTimeout(() => setExpirySaved(false), 2000);
+    } finally {
+      setSavingExpiry(false);
+    }
+  };
+
   const permColor = (perm: string) => {
     switch (perm) {
       case "edit":
@@ -125,6 +164,40 @@ export function LinkManager({ documentId, adminKey }: LinkManagerProps) {
       <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-4">
         Share Links
       </h3>
+
+      {/* Document expiry — admin-only; future dates only, up to 1 year out. */}
+      <div className="bg-neutral-900 rounded-lg p-3 mb-4">
+        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-2">
+          Document expiry
+        </h4>
+        <p className="text-[11px] text-neutral-500 mb-2">
+          {docExpiry
+            ? `Auto-deletes ${new Date(docExpiry).toLocaleString()}`
+            : "No expiry set"}
+        </p>
+        <input
+          type="datetime-local"
+          value={newDocExpiry}
+          min={minExpiry}
+          max={maxExpiry}
+          onChange={(e) => setNewDocExpiry(e.target.value)}
+          aria-label="New document expiry date"
+          className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-300 touch-manipulation [color-scheme:dark] mb-2"
+        />
+        <button
+          onClick={updateExpiry}
+          disabled={savingExpiry || !newDocExpiry}
+          className="w-full py-2 bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 text-neutral-200 text-xs font-medium rounded-lg transition-colors touch-manipulation"
+        >
+          {savingExpiry ? "Saving…" : expirySaved ? "Updated ✓" : "Update expiry"}
+        </button>
+        <p className="text-[11px] text-neutral-600 mt-1.5">
+          Future dates only (up to 1 year). Set a nearer date to delete sooner.
+        </p>
+        {expiryError && (
+          <p className="text-[11px] text-red-400 mt-1.5">{expiryError}</p>
+        )}
+      </div>
 
       {/* Links list */}
       <div className="space-y-2 mb-4">

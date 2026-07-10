@@ -4,6 +4,7 @@ import { getDB } from "../../../../../lib/db";
 import { resolveToken } from "../../../../../lib/permissions";
 import { generateToken, hashToken, tokenPrefix } from "../../../../../lib/tokens";
 import type { Permission } from "../../../../../lib/tokens";
+import { encryptToken, decryptToken } from "../../../../../lib/token-crypto";
 import { incrementStat } from "../../../../../lib/stats";
 
 export const prerender = false;
@@ -48,6 +49,7 @@ export const POST: APIRoute = async ({ request, params }) => {
   const token = generateToken(permission);
   const hash = await hashToken(token);
   const prefix = tokenPrefix(token);
+  const storedToken = await encryptToken(token);
   const linkId = nanoid(16);
 
   await db
@@ -55,7 +57,7 @@ export const POST: APIRoute = async ({ request, params }) => {
       `INSERT INTO links (id, document_id, token_prefix, token_hash, permission, label, token, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .bind(linkId, id, prefix, hash, permission, label, token, expiresAt)
+    .bind(linkId, id, prefix, hash, permission, label, storedToken, expiresAt)
     .run();
 
   const linkCount = await db
@@ -111,10 +113,16 @@ export const GET: APIRoute = async ({ request, params }) => {
       token: string | null;
     }>();
 
-  const linksWithUrls = (links.results || []).map((link) => ({
-    ...link,
-    url: link.token ? `${baseUrl}/d/${id}?key=${link.token}` : null,
-  }));
+  const linksWithUrls = await Promise.all(
+    (links.results || []).map(async (link) => {
+      const rawToken = await decryptToken(link.token);
+      return {
+        ...link,
+        token: rawToken,
+        url: rawToken ? `${baseUrl}/d/${id}?key=${rawToken}` : null,
+      };
+    })
+  );
 
   return Response.json({ links: linksWithUrls });
 };

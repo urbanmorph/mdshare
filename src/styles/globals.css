@@ -1,8 +1,28 @@
 @import "tailwindcss";
 
+/* Self-hosted Geist (OFL licence) — replaces the former Google Fonts <link>, so
+   loading the UI font never sends a visitor request to Google. The variable
+   woff2 covers weights 100–900. Files live in public/fonts/. */
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Geist-Variable.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/GeistMono-Variable.woff2") format("woff2");
+}
+
 :root {
   --background: #0a0a0a;
   --foreground: #ededed;
+  --font-geist-sans: "Geist";
+  --font-geist-mono: "Geist Mono";
 }
 
 @theme inline {

@@ -1,8 +1,11 @@
 // Detects the dominant script of a document so we can render it natively:
-// correct font, language metadata, and writing direction. Pure, no deps.
+// language metadata and writing direction. Pure, no deps.
 //
-// "Polyglot content, English chrome" — this drives <html lang>, og:locale, and
-// a conditional web-font <link>. It does NOT flip the app's `dir` (the content
+// "Polyglot content, English chrome" — this drives <html lang> and og:locale.
+// The page loads NO third-party web font for non-Latin scripts: the body font
+// stack falls back to the reader's system fonts (browsers do per-glyph fallback),
+// so no visitor request ever reaches Google. `fontFamily` is retained only for
+// the server-side OG-card renderer. It does NOT flip the app's `dir` (content
 // containers already use dir="auto"); see supporting-docs/multilingual-rendering-plan.md.
 
 export type Script =
@@ -22,8 +25,7 @@ export interface LocaleInfo {
   dir: "ltr" | "rtl";
   lang: string; // coarse BCP-47
   ogLocale: string; // Open Graph locale, e.g. ar_AR
-  fontHref: string | null; // Google Fonts <link> href, or null for latin (Geist already loaded)
-  fontFamily: string | null; // bare Google Fonts family (for OG subset fetch), null for latin
+  fontFamily: string | null; // Noto family for the server-side OG card, null for latin
 }
 
 interface ScriptDef {
@@ -34,9 +36,6 @@ interface ScriptDef {
   ogLocale: string;
   fontFamily: string; // Google Fonts family name
 }
-
-const googleFont = (family: string): string =>
-  `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}:wght@400..700&display=swap`;
 
 // Single source of truth. Adding a script = one row. Blocks are disjoint, so a
 // code point matches at most one entry. Japanese/Korean precede Han only for
@@ -53,7 +52,7 @@ const SCRIPTS: ScriptDef[] = [
   { script: "greek", ranges: [[0x0370, 0x03ff]], dir: "ltr", lang: "el", ogLocale: "el_GR", fontFamily: "Noto Sans" },
 ];
 
-const LATIN: LocaleInfo = { script: "latin", dir: "ltr", lang: "en", ogLocale: "en_US", fontHref: null, fontFamily: null };
+const LATIN: LocaleInfo = { script: "latin", dir: "ltr", lang: "en", ogLocale: "en_US", fontFamily: null };
 
 const SAMPLE_LEN = 2000;
 const THRESHOLD = 0.1; // dominant non-Latin script must be ≥10% of letters
@@ -115,7 +114,6 @@ export function detectScript(text: string): LocaleInfo {
     dir: winner.dir,
     lang: winner.lang,
     ogLocale: winner.ogLocale,
-    fontHref: googleFont(winner.fontFamily),
     fontFamily: winner.fontFamily,
   };
 }
