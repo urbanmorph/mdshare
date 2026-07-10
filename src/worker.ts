@@ -138,7 +138,7 @@ export function createExports(manifest: SSRManifest) {
         );
         headers.set(
           "Content-Security-Policy",
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https: data:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' wss: https:; frame-ancestors 'none'"
+          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self' data:; connect-src 'self' wss: https:; frame-ancestors 'none'"
         );
 
         if (url.pathname.startsWith("/d/")) {

@@ -568,7 +568,7 @@ export function DocumentView({
             )}
             {openPanel === "links" && permission === "admin" && (
               <Suspense fallback={<div className="p-4"><Spinner context="panel-links" /></div>}>
-                <LinkManager documentId={doc.id} adminKey={tokenKey} />
+                <LinkManager documentId={doc.id} adminKey={tokenKey} documentExpiresAt={doc.expires_at} />
               </Suspense>
             )}
           </div>

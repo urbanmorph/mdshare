@@ -6,7 +6,6 @@ interface Props {
   canonical?: string;
   lang?: string;
   ogLocale?: string;
-  fontHref?: string;
   ogImage?: string;
 }
 
@@ -17,7 +16,6 @@ const {
   canonical,
   lang = "en",
   ogLocale = "en_US",
-  fontHref,
 } = Astro.props;
 
 const siteUrl = "https://mdshare.live";
@@ -58,15 +56,12 @@ const ogImage = Astro.props.ogImage ?? `${siteUrl}/og.png`;
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap"
-      rel="stylesheet"
-    />
-    {/* Per-doc script font (RTL/CJK/Cyrillic/etc.) — only foreign docs load one. */}
-    {fontHref && <link href={fontHref} rel="stylesheet" />}
+    <!-- Fonts: Geist is self-hosted (public/fonts + globals.css @font-face), so
+         the UI font never triggers a third-party request. -->
+    <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    {/* Non-Latin document content renders in the reader's system fonts (see the
+        body font stack) — no third-party web font is ever requested. */}
 
     <!-- JSON-LD -->
     <script type="application/ld+json" set:html={JSON.stringify({

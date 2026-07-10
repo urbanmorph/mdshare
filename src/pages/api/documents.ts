@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { nanoid } from "nanoid";
 import { getDB } from "../../../lib/db";
 import { generateToken, hashToken, tokenPrefix } from "../../../lib/tokens";
+import { encryptToken } from "../../../lib/token-crypto";
 import { sanitizeMarkdown, contentHash, validateIsText, sanitizeTitle } from "../../../lib/sanitize";
 import { checkRateLimit, checkDurableRateLimit, rateLimitResponse } from "../../../lib/rate-limit";
 import { incrementStat } from "../../../lib/stats";
@@ -117,6 +118,7 @@ export const POST: APIRoute = async ({ request }) => {
   const adminToken = generateToken("admin");
   const adminTokenHash = await hashToken(adminToken);
   const adminPrefix = tokenPrefix(adminToken);
+  const adminTokenStored = await encryptToken(adminToken);
   const linkId = nanoid(16);
 
   const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
@@ -134,7 +136,7 @@ export const POST: APIRoute = async ({ request }) => {
         `INSERT INTO links (id, document_id, token_prefix, token_hash, permission, label, token)
          VALUES (?, ?, ?, ?, 'admin', 'admin', ?)`
       )
-      .bind(linkId, docId, adminPrefix, adminTokenHash, adminToken),
+      .bind(linkId, docId, adminPrefix, adminTokenHash, adminTokenStored),
   ]);
   await incrementStat(db, "documents_created");
   const dbMs = Date.now() - tDb;

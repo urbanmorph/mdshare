@@ -289,6 +289,28 @@ const TOOLS = [
     },
   },
   {
+    name: "set_expiry",
+    description:
+      "Change when a document auto-deletes. The new expiry must be a FUTURE date (ISO 8601) at most 1 year out; set a nearer date to have it removed sooner. Requires admin access. If the document is in this MCP server's local store, 'key' is optional. There is no separate delete tool — bringing the expiry forward is how you remove a document early.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+    inputSchema: {
+      type: "object",
+      properties: {
+        document_id: { type: "string", description: "Document ID" },
+        key: { type: "string", description: "Admin key. Optional if the document is in this MCP server's local store." },
+        expires_at: {
+          type: "string",
+          description: "New expiry as an ISO 8601 timestamp (e.g. 2026-12-31T00:00:00Z). Must be in the future and within 1 year from now.",
+        },
+      },
+      required: ["document_id", "expires_at"],
+    },
+  },
+  {
     name: "list_comments",
     description:
       "List all comments on a document, including replies and resolution status. If the document is in this MCP server's local store, 'key' is optional.",
@@ -659,6 +681,19 @@ async function handleTool(name, args) {
         {
           method: "PATCH",
           body: JSON.stringify({ is_active: false }),
+        }
+      );
+      return JSON.stringify(data, null, 2);
+    }
+
+    case "set_expiry": {
+      const key = await resolveKey(args.document_id, args.key);
+      if (!key) throw new Error(noKeyMessage(args.document_id));
+      const { data } = await callApi(
+        `/api/d/${args.document_id}/expiry?key=${key}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ expires_at: args.expires_at }),
         }
       );
       return JSON.stringify(data, null, 2);
