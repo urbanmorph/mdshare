@@ -158,7 +158,9 @@ export function DocumentView({
     setTimeout(() => { document.title = original; }, 3000);
   }, []);
 
-  // WebSocket for instant updates; poll is the fallback
+  // WebSocket owns content in steady state. The 15s poll keeps comments and the
+  // viewer list fresh; it only pulls content when the socket is down or when a
+  // reconnect asks it to catch up (forceContentSyncRef) — not as a standing backup.
   const handleWSUpdate = useCallback((content: string, contentHash: string) => {
     if (isSavingRef.current) return;
     setLiveContent(content);
@@ -168,10 +170,20 @@ export function DocumentView({
     setTimeout(() => setSaveStatus("Ready"), 2000);
   }, [flashTabTitle]);
 
-  const { broadcastUpdate, connected: wsConnected } = useDocumentWS({
+  // One-shot content resync after the socket recovers. pollRef is filled in once
+  // poll() is defined below (poll is declared after this hook call).
+  const forceContentSyncRef = useRef(false);
+  const pollRef = useRef<() => void>(() => {});
+  const handleReconnect = useCallback(() => {
+    forceContentSyncRef.current = true;
+    pollRef.current();
+  }, []);
+
+  const { broadcastUpdate, connected: wsConnected, status: wsStatus } = useDocumentWS({
     documentId: doc.id,
     tokenKey,
     onContentUpdate: handleWSUpdate,
+    onReconnect: handleReconnect,
     enabled: true,
   });
 
@@ -185,6 +197,10 @@ export function DocumentView({
 
   const poll = useCallback(async () => {
     if (isSavingRef.current) return;
+    // Pull content only when the socket can't (down) or a reconnect asked us to
+    // catch up. While the socket is live, content rides the WS and the poll just
+    // refreshes comments/viewers.
+    const wantContent = !wsConnectedRef.current || forceContentSyncRef.current;
     try {
       const res = await fetch(`/api/d/${doc.id}/poll?key=${tokenKey}`, {
         method: "POST",
@@ -192,10 +208,12 @@ export function DocumentView({
         body: JSON.stringify({
           session_id: sessionIdRef.current,
           name: displayNameRef.current,
-          content_hash: wsConnectedRef.current ? undefined : lastContentHashRef.current,
+          content_hash: wantContent ? lastContentHashRef.current : undefined,
         }),
       });
-      if (!res.ok) return;
+      if (!res.ok) return; // leave the catch-up flag set; the next tick retries
+      // Got a good response — the resync (if any) has been served.
+      forceContentSyncRef.current = false;
       const data = (await res.json()) as {
         content_hash: string;
         content?: string;
@@ -206,7 +224,7 @@ export function DocumentView({
       setViewers(data.viewers);
       setComments(data.comments);
 
-      if (!wsConnectedRef.current && data.content && data.content_hash !== lastContentHashRef.current) {
+      if (wantContent && data.content && data.content_hash !== lastContentHashRef.current) {
         setLiveContent(data.content);
         setLastContentHash(data.content_hash);
         setSaveStatus("Updated");
@@ -217,6 +235,7 @@ export function DocumentView({
       // Polling failures are recoverable; the next tick will retry.
     }
   }, [doc.id, tokenKey, flashTabTitle]);
+  pollRef.current = poll;
 
   useEffect(() => {
     poll();
@@ -489,17 +508,44 @@ export function DocumentView({
           )}
           {/* Status bar */}
           <div className="flex items-center justify-between px-3 sm:px-5 py-1.5 border-t border-neutral-800 text-xs text-neutral-300 bg-neutral-950 gap-2">
-            <span className="flex items-center gap-1.5 shrink-0">
-              <span
-                className={`inline-block w-1.5 h-1.5 rounded-full ${
-                  saveStatus === "Saved" || saveStatus === "Ready"
-                    ? "bg-green-400"
-                    : saveStatus === "Saving..." || saveStatus === "Updated"
-                    ? "bg-yellow-400"
-                    : "bg-red-400"
-                }`}
-              />
-              {saveStatus}
+            <span className="flex items-center gap-3 shrink-0">
+              <span className="flex items-center gap-1.5">
+                <span
+                  className={`inline-block w-1.5 h-1.5 rounded-full ${
+                    saveStatus === "Saved" || saveStatus === "Ready"
+                      ? "bg-green-400"
+                      : saveStatus === "Saving..." || saveStatus === "Updated"
+                      ? "bg-yellow-400"
+                      : "bg-red-400"
+                  }`}
+                />
+                {saveStatus}
+              </span>
+              {wsStatus === "live" ? (
+                <span
+                  className="hidden sm:flex items-center gap-1 text-neutral-500"
+                  title="Live — receiving updates in real time"
+                >
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400" />
+                  Live
+                </span>
+              ) : wsStatus === "connecting" ? (
+                <span
+                  className="hidden sm:flex items-center gap-1 text-neutral-500"
+                  title="Connecting to live updates…"
+                >
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-neutral-500 animate-pulse" />
+                  Connecting…
+                </span>
+              ) : (
+                <span
+                  className="flex items-center gap-1 text-amber-400"
+                  title="Connection lost — reconnecting. Live updates are paused; the page will catch up automatically."
+                >
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  Reconnecting…
+                </span>
+              )}
             </span>
             <span className="hidden sm:inline text-neutral-500">
               {doc.content.split(/\s+/).filter(Boolean).length} words
