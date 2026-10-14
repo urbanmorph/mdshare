@@ -44,9 +44,9 @@ For **Cursor**, install via the [Cursor Directory listing](https://cursor.direct
 | Tool | What it does |
 |------|-------------|
 | `upload_markdown` | Upload markdown by `file_path` (preferred for files on disk) or inline `content`. Returns a share link (default permission: `comment`). Admin credential is stored locally — see below. |
-| `read_document` | Read a document by ID + key, optionally save to `output_path` on disk |
-| `update_document` | Update content (edit/admin key) |
-| `patch_document` | Find/replace operations without rewriting the full document |
+| `read_document` | Read a document by ID + key, optionally save to `output_path` on disk. Large and saved reads also return `content_hash`. |
+| `update_document` | Update content (edit/admin key). Optional `base_hash` refuses to overwrite newer edits. |
+| `patch_document` | Find/replace operations without rewriting the full document. Optional `base_hash`, as above. |
 | `generate_link` | Create view/edit/comment link (admin key) |
 | `list_links` | List all share links with status (admin key) |
 | `revoke_link` | Revoke a share link permanently (admin key) |
@@ -61,6 +61,10 @@ For **Cursor**, install via the [Cursor Directory listing](https://cursor.direct
 ### `key` is optional on most tools
 
 As of v1.3.0, the `key` parameter is optional on every tool except `resolve_comment`. If you created the document via this MCP server (or registered it with `register_document`), the admin key is loaded from the local store automatically. Pass `key` explicitly when you want to act as a non-admin user (e.g., posting a comment with an edit-level key).
+
+### Avoiding overwrites with `base_hash` (v1.5.0)
+
+Other people may be editing the same document. Pass `base_hash` on `update_document` or `patch_document` with the `content_hash` of the version your edit is based on. You get it from `read_document` (with `output_path`, or on large reads) or from your previous update or patch response. If the document has changed since, nothing is written and the tool returns `{"error": "conflict", "content_hash": "..."}`: read the document again, reapply your edit, and retry. Without `base_hash`, writes behave as before (last write wins).
 
 ## Local credential store
 

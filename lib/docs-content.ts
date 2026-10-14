@@ -51,6 +51,8 @@ curl -X PUT "https://mdshare.live/api/d/{id}?key={edit_or_admin_key}" \\
 
 The \`X-Author\` header is optional. It tags the edit in version history.
 
+To avoid overwriting someone else's newer edit, send \`X-Base-Hash\` with the \`content_hash\` of the version your edit is based on (from a previous read or write). If the document has changed since, the write is refused with \`409 Conflict\` and the response carries the latest \`content\` and \`content_hash\`. Without the header, the last write wins. \`PATCH\` accepts the same header.
+
 ### Patch a document (partial update)
 
 \`\`\`bash
