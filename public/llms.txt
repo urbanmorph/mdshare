@@ -28,7 +28,7 @@ Quick reference:
 
 - Upload: `POST /api/documents` (Content-Type: text/markdown, body: raw markdown)
 - Read: `GET /api/d/{id}?key={key}` (Accept: text/markdown for raw)
-- Update: `PUT /api/d/{id}?key={edit_key}` (Content-Type: text/markdown, X-Author: name)
+- Update: `PUT /api/d/{id}?key={edit_key}` (Content-Type: text/markdown, X-Author: name, optional X-Base-Hash: content_hash your edit is based on; returns 409 with the latest content if the document changed)
 - Patch: `PATCH /api/d/{id}?key={edit_key}` (JSON `{operations:[{find,replace,replace_all?}], author?}`) — preferred for small edits to large docs
 - Links: `POST /api/d/{id}/links?key={admin_key}` (`{permission, label, expires_at}`)
 - Comments: `POST /api/d/{id}/comments?key={key}` (`{content, author_name, anchor_text, parent_id}`) — replies nest one level

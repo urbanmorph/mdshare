@@ -9,8 +9,9 @@ import {
 import { readFile, writeFile, mkdir, chmod } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 
-const VERSION = "1.4.1";
+const VERSION = "1.5.0";
 const BASE_URL = "https://mdshare.live";
 const STORE_DIR = join(homedir(), ".mdshare-mcp");
 const STORE_PATH = join(STORE_DIR, "documents.json");
@@ -29,7 +30,8 @@ const SERVER_INSTRUCTIONS = `mdshare MCP server. Conventions that apply to every
 - If both file_path and content (or operations) are provided on update_document / patch_document, file_path wins.
 - Admin credentials for documents uploaded via this server are stored locally. The \`key\` argument is OPTIONAL on tools addressed by document_id — it's looked up automatically. Use list_my_documents to see what's stored.
 - Never surface admin URLs to the user unless they explicitly ask. upload_markdown returns only share_url by design; use get_admin_url only on direct user request.
-- For small edits to existing documents, prefer patch_document over update_document — keeps version history granular.`;
+- For small edits to existing documents, prefer patch_document over update_document — keeps version history granular.
+- Others may edit the same document. To avoid overwriting their newer edits, pass base_hash on update_document / patch_document: the content_hash from read_document (with output_path) or from your last update/patch. A conflict means nothing was written; read again and reapply.`;
 
 // ---------- Local credential store ----------
 // Records the admin credentials for docs uploaded via this MCP server so the
@@ -572,11 +574,14 @@ async function handleTool(name, args) {
         { headers: { Accept: "text/markdown" }, contentType: "text/plain" }
       );
       const content = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+      // Same hash the server stores (SHA-256 of the stored markdown), usable as base_hash.
+      const contentHash = typeof data === "string" ? createHash("sha256").update(data, "utf8").digest("hex") : undefined;
       if (args.output_path && typeof data === "string") {
         await writeFile(args.output_path, content, "utf-8");
         return JSON.stringify({
           saved_to: args.output_path,
           bytes: Buffer.byteLength(content, "utf-8"),
+          content_hash: contentHash,
         }, null, 2);
       }
       // Nudge wrapping for large inline reads — keeps small reads as raw text
@@ -584,6 +589,7 @@ async function handleTool(name, args) {
       if (typeof data === "string" && bytes > READ_RESPONSE_NUDGE_THRESHOLD) {
         return JSON.stringify({
           content,
+          content_hash: contentHash,
           note: `${bytes} bytes returned inline. For future calls on large documents, pass output_path to write directly to disk and receive a compact summary instead.`,
         }, null, 2);
       }
@@ -836,7 +842,7 @@ async function handleTool(name, args) {
 // ---------- Server setup ----------
 
 const server = new Server(
-  { name: "mdshare", version: "1.4.0" },
+  { name: "mdshare", version: VERSION },
   {
     capabilities: { tools: {} },
     instructions: SERVER_INSTRUCTIONS,
