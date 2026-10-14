@@ -81,8 +81,17 @@ export function DocumentView({
     const saved = localStorage.getItem("editorLight");
     if (saved === "true") setLightEditor(true);
   }, []);
+  // lastContentHash is the version this tab's editor actually shows. It is sent as
+  // the base of every save, so it must only move forward once content is applied.
   const [lastContentHash, setLastContentHash] = useState(doc.content_hash);
   const isSavingRef = useRef(false);
+  // Content from elsewhere is numbered; the editor reports which number it shows.
+  const [contentRevision, setContentRevision] = useState(0);
+  const remoteRef = useRef({ revision: 0, hash: doc.content_hash });
+  // The user's edit that a newer version overtook, kept so it is not lost.
+  const [conflictDraft, setConflictDraft] = useState<string | null>(null);
+  const lastContentHashRef = useRef(lastContentHash);
+  lastContentHashRef.current = lastContentHash;
   const { name: displayName, setName: setDisplayName } = useDisplayName();
   const editable = permission === "admin" || permission === "edit";
 
@@ -161,14 +170,29 @@ export function DocumentView({
   // WebSocket owns content in steady state. The 15s poll keeps comments and the
   // viewer list fresh; it only pulls content when the socket is down or when a
   // reconnect asks it to catch up (forceContentSyncRef) — not as a standing backup.
-  const handleWSUpdate = useCallback((content: string, contentHash: string) => {
-    if (isSavingRef.current) return;
+  const usesEditor = editable || permission === "comment";
+  const applyRemote = useCallback((content: string, contentHash: string) => {
+    const revision = remoteRef.current.revision + 1;
+    remoteRef.current = { revision, hash: contentHash };
     setLiveContent(content);
-    setLastContentHash(contentHash);
+    setContentRevision(revision);
+    // The read-only viewer always renders the latest content directly.
+    if (!usesEditor) setLastContentHash(contentHash);
+  }, [usesEditor]);
+  const handleContentApplied = useCallback((revision: number) => {
+    if (revision === remoteRef.current.revision) setLastContentHash(remoteRef.current.hash);
+  }, []);
+
+  const handleWSUpdate = useCallback((content: string, contentHash: string) => {
+    // Our own save echoed back, or an update racing our in-flight save. If it was
+    // someone else's, our base hash is now stale and the next save gets a 409, so
+    // nothing is overwritten.
+    if (isSavingRef.current || contentHash === lastContentHashRef.current) return;
+    applyRemote(content, contentHash);
     setSaveStatus("Updated");
     flashTabTitle();
     setTimeout(() => setSaveStatus("Ready"), 2000);
-  }, [flashTabTitle]);
+  }, [applyRemote, flashTabTitle]);
 
   // One-shot content resync after the socket recovers. pollRef is filled in once
   // poll() is defined below (poll is declared after this hook call).
@@ -188,8 +212,6 @@ export function DocumentView({
   });
 
   // Use refs for values that change often to avoid recreating the poll callback
-  const lastContentHashRef = useRef(lastContentHash);
-  lastContentHashRef.current = lastContentHash;
   const displayNameRef = useRef(displayName);
   displayNameRef.current = displayName;
   const wsConnectedRef = useRef(wsConnected);
@@ -225,8 +247,7 @@ export function DocumentView({
       setComments(data.comments);
 
       if (wantContent && data.content && data.content_hash !== lastContentHashRef.current) {
-        setLiveContent(data.content);
-        setLastContentHash(data.content_hash);
+        applyRemote(data.content, data.content_hash);
         setSaveStatus("Updated");
         flashTabTitle();
         setTimeout(() => setSaveStatus("Ready"), 2000);
@@ -234,7 +255,7 @@ export function DocumentView({
     } catch {
       // Polling failures are recoverable; the next tick will retry.
     }
-  }, [doc.id, tokenKey, flashTabTitle]);
+  }, [doc.id, tokenKey, flashTabTitle, applyRemote]);
   pollRef.current = poll;
 
   useEffect(() => {
@@ -318,9 +339,19 @@ export function DocumentView({
             "Content-Type": "text/markdown",
             "X-Edited-Via": "browser",
             "X-Author": displayName,
+            // The version this edit was made on. A newer version on the server
+            // means this tab missed it; the server answers 409 instead of overwriting.
+            "X-Base-Hash": lastContentHashRef.current,
           },
           body: markdown,
         });
+        if (res.status === 409) {
+          const latest = (await res.json()) as { content: string; content_hash: string };
+          setConflictDraft(markdown);
+          applyRemote(latest.content, latest.content_hash);
+          setSaveStatus("Not saved: newer version loaded");
+          return;
+        }
         if (res.ok) {
           const data = (await res.json()) as { status: string; content_hash?: string };
           if (data.content_hash) {
@@ -339,7 +370,7 @@ export function DocumentView({
         isSavingRef.current = false;
       }
     },
-    [doc.id, tokenKey, broadcastUpdate, displayName]
+    [doc.id, tokenKey, broadcastUpdate, displayName, applyRemote]
   );
 
   return (
@@ -455,6 +486,38 @@ export function DocumentView({
         </div>
       )}
 
+      {conflictDraft !== null && (
+        <div role="alert" className="flex flex-col gap-2 px-3 sm:px-5 py-2.5 bg-amber-950/40 border-b border-amber-900/60 text-xs sm:text-sm text-amber-100">
+          <div className="flex items-start gap-3">
+            <div className="flex-1 leading-relaxed">
+              <span className="font-semibold">This note changed while you were editing.</span>{" "}
+              <span className="text-amber-200/80">
+                The newer version is now loaded. Your last edit was not saved, so it is kept below. Copy what you need back into the note.
+              </span>
+            </div>
+            <button
+              onClick={() => { navigator.clipboard?.writeText(conflictDraft).catch(() => {}); }}
+              className="shrink-0 px-2 py-1 rounded bg-amber-800/60 hover:bg-amber-700/60 text-amber-50 transition-colors"
+            >
+              Copy my edit
+            </button>
+            <button
+              onClick={() => setConflictDraft(null)}
+              aria-label="Dismiss"
+              className="shrink-0 text-amber-300 hover:text-white transition-colors px-1"
+            >
+              ×
+            </button>
+          </div>
+          <textarea
+            readOnly
+            value={conflictDraft}
+            aria-label="Your unsaved edit"
+            className="w-full h-28 p-2 rounded bg-neutral-950 border border-amber-900/60 text-neutral-200 font-mono text-xs"
+          />
+        </div>
+      )}
+
       {/* Mobile title bar */}
       <div className="sm:hidden px-3 py-1.5 border-b border-neutral-800 bg-neutral-950">
         <span className="text-xs text-neutral-400 truncate block">
@@ -490,6 +553,8 @@ export function DocumentView({
           {editable || permission === "comment" ? (
             <TiptapEditor
               content={liveContent}
+              contentRevision={contentRevision}
+              onContentApplied={handleContentApplied}
               editable={editable}
               onUpdate={editable ? handleUpdate : undefined}
               commentAnchors={commentAnchors}

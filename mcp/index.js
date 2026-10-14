@@ -111,6 +111,14 @@ async function callApi(path, options = {}) {
   }
 }
 
+function conflictResult(data) {
+  return JSON.stringify({
+    error: "conflict",
+    message: "The document changed after base_hash. Nothing was written. Read the document again, reapply your edit, and retry with the new content_hash.",
+    content_hash: data && data.content_hash,
+  }, null, 2);
+}
+
 // ---------- Tool definitions ----------
 
 const TOOLS = [
@@ -187,6 +195,10 @@ const TOOLS = [
           description: "Inline markdown content (full document body). Only use for short content composed in the conversation. For files on disk, use file_path instead.",
         },
         author: { type: "string", description: "Your name (for edit attribution)" },
+        base_hash: {
+          type: "string",
+          description: "Optional. The content_hash of the version your edit is based on (from a previous update or patch response). If the document has changed since, the write is refused with a conflict instead of overwriting the newer content.",
+        },
       },
       required: ["document_id"],
     },
@@ -223,6 +235,10 @@ const TOOLS = [
           },
         },
         author: { type: "string", description: "Your name (for edit attribution)" },
+        base_hash: {
+          type: "string",
+          description: "Optional. The content_hash of the version your edit is based on (from a previous update or patch response). If the document has changed since, the write is refused with a conflict instead of overwriting the newer content.",
+        },
       },
       required: ["document_id"],
     },
@@ -589,10 +605,12 @@ async function handleTool(name, args) {
       }
       const headers = {};
       if (args.author) headers["X-Author"] = args.author;
-      const { data } = await callApi(
+      if (args.base_hash) headers["X-Base-Hash"] = args.base_hash;
+      const { status, data } = await callApi(
         `/api/d/${args.document_id}?key=${key}`,
         { method: "PUT", contentType: "text/markdown", body, headers }
       );
+      if (status === 409) return conflictResult(data);
       // Nudge if inline content was passed above threshold
       if (!usedFilePath && typeof data === "object" && data !== null) {
         const bytes = Buffer.byteLength(body, "utf-8");
@@ -633,10 +651,15 @@ async function handleTool(name, args) {
       }
       const requestBody = { operations };
       if (args.author) requestBody.author = args.author;
-      const { data } = await callApi(
+      const { status, data } = await callApi(
         `/api/d/${args.document_id}?key=${key}`,
-        { method: "PATCH", body: JSON.stringify(requestBody) }
+        {
+          method: "PATCH",
+          body: JSON.stringify(requestBody),
+          headers: args.base_hash ? { "X-Base-Hash": args.base_hash } : {},
+        }
       );
+      if (status === 409) return conflictResult(data);
       // Nudge if operations were passed inline (not from a file) and the
       // serialized array is large
       if (!usedFilePath && typeof data === "object" && data !== null) {

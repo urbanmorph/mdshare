@@ -20,6 +20,10 @@ import type { CommentAnchor } from "./comment-highlight";
 
 interface TiptapEditorProps {
   content: string;
+  /** Bumped by the parent each time `content` arrives from someone else (socket, poll, conflict). */
+  contentRevision?: number;
+  /** Called once the editor shows the content of a given revision. */
+  onContentApplied?: (revision: number) => void;
   editable: boolean;
   onUpdate?: (markdown: string) => void;
   commentAnchors?: CommentAnchor[];
@@ -34,6 +38,8 @@ interface TiptapEditorProps {
 
 export function TiptapEditor({
   content,
+  contentRevision = 0,
+  onContentApplied,
   editable,
   onUpdate,
   commentAnchors = [],
@@ -91,6 +97,7 @@ export function TiptapEditor({
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
         const md = (editor.storage as unknown as { markdown: { getMarkdown: () => string } }).markdown.getMarkdown();
         onUpdate(md);
       }, 3000);
@@ -124,16 +131,29 @@ export function TiptapEditor({
     }, 50);
   }, [editor, activeCommentId]);
 
-  // Update content when it changes externally (live updates)
-  const lastExternalContent = useRef(content);
+  // Apply content that arrives from someone else (live updates, resync, conflict).
+  // - Applied even while the editor has focus. Skipping it left a tab showing old
+  //   text while believing it was current, and its next save overwrote newer work.
+  // - Held back only while this tab has unsaved typing (a save is pending). That
+  //   save carries the old base hash, the server answers 409, and the parent then
+  //   bumps the revision so the newer content lands here.
+  // - Applied with emitUpdate: false, so receiving content never triggers a save.
+  const appliedRevision = useRef(contentRevision);
   useEffect(() => {
-    if (!editor || content === lastExternalContent.current) return;
-    lastExternalContent.current = content;
-
-    if (!editor.isFocused) {
-      editor.commands.setContent(content);
+    if (!editor || contentRevision === appliedRevision.current) return;
+    if (debounceRef.current) return;
+    appliedRevision.current = contentRevision;
+    const current = (editor.storage as unknown as { markdown: { getMarkdown: () => string } }).markdown.getMarkdown();
+    if (current !== content) {
+      const { from, to } = editor.state.selection;
+      editor.commands.setContent(content, { emitUpdate: false });
+      if (editor.isFocused) {
+        const end = editor.state.doc.content.size;
+        editor.commands.setTextSelection({ from: Math.min(from, end), to: Math.min(to, end) });
+      }
     }
-  }, [content, editor]);
+    onContentApplied?.(contentRevision);
+  }, [content, contentRevision, editor, onContentApplied]);
 
   // Cmd+K shortcut for link insertion
   useEffect(() => {
