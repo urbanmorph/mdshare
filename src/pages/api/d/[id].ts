@@ -6,6 +6,7 @@ import { sanitizeMarkdown, contentHash } from "../../../../lib/sanitize";
 import { nanoid } from "nanoid";
 import { checkRateLimit, rateLimitResponse } from "../../../../lib/rate-limit";
 import { broadcastUpdate } from "../../../../lib/broadcast";
+import { BASE_HASH_HEADER, isStaleWrite } from "../../../../lib/base-hash";
 
 export const prerender = false;
 
@@ -124,6 +125,14 @@ export const PUT: APIRoute = async ({ request, params }) => {
 
   if (current.content_hash === hash) {
     return Response.json({ status: "unchanged", processing_ms: Date.now() - t0 });
+  }
+
+  // A stale writer (an editor tab that missed newer content) must not overwrite it.
+  if (isStaleWrite(request.headers.get(BASE_HASH_HEADER), current.content_hash)) {
+    return Response.json(
+      { error: "conflict", content: current.content, content_hash: current.content_hash },
+      { status: 409 }
+    );
   }
 
   const versionId = nanoid(16);
@@ -262,6 +271,14 @@ export const PATCH: APIRoute = async ({ request, params }) => {
 
   if (current.content_hash === hash) {
     return Response.json({ applied: 0, operations: results, status: "unchanged", processing_ms: Date.now() - t0 });
+  }
+
+  // A stale writer (an editor tab that missed newer content) must not overwrite it.
+  if (isStaleWrite(request.headers.get(BASE_HASH_HEADER), current.content_hash)) {
+    return Response.json(
+      { error: "conflict", content: current.content, content_hash: current.content_hash },
+      { status: 409 }
+    );
   }
 
   const versionId = nanoid(16);
