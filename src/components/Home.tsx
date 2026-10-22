@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from "react";
 import { Spinner } from "../../components/ui/spinner";
-import { getRecentDocs, type RecentDoc } from "../../lib/recent-docs";
+import { getRecentDocsSnapshot, getServerRecentDocs, subscribeRecentDocs } from "../../lib/recent-docs";
 
 interface CreateResult {
   document_id: string;
@@ -16,12 +16,12 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([]);
+  const recentDocs = useSyncExternalStore(subscribeRecentDocs, getRecentDocsSnapshot, getServerRecentDocs);
+  const [showAllRecent, setShowAllRecent] = useState(false);
   const [stats, setStats] = useState<{ documents_created: number; documents_shared: number; comments_posted: number; collaborators: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setRecentDocs(getRecentDocs());
     fetch("/api/stats")
       .then(r => r.ok ? r.json() as Promise<{ documents_created: number; documents_shared: number; comments_posted: number; collaborators: number }> : null)
       .then(data => { if (data) setStats(data); })
@@ -388,7 +388,7 @@ export default function Home() {
           <div className="mt-4 pt-4 border-t border-neutral-900">
             <p className="text-xs text-neutral-600 mb-2">Recent documents</p>
             <div className="space-y-1">
-              {recentDocs.slice(0, 5).map((doc) => (
+              {(showAllRecent ? recentDocs : recentDocs.slice(0, 5)).map((doc) => (
                 <a
                   key={`${doc.id}-${doc.key}`}
                   href={`/d/${doc.id}?key=${doc.key}`}
@@ -411,6 +411,15 @@ export default function Home() {
                 </a>
               ))}
             </div>
+            {recentDocs.length > 5 && (
+              <button
+                type="button"
+                onClick={() => setShowAllRecent((v) => !v)}
+                className="mt-2 text-xs text-neutral-600 hover:text-neutral-400 transition-colors"
+              >
+                {showAllRecent ? "Show fewer" : `Show all ${recentDocs.length}`}
+              </button>
+            )}
           </div>
         )}
 
