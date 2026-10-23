@@ -5,6 +5,7 @@ import type { SSRManifest } from "astro";
 import { App } from "astro/app";
 import { handle } from "@astrojs/cloudflare/handler";
 import { tokenPrefix, verifyToken } from "../lib/tokens";
+import { KEYRING_TTL_MS } from "../lib/keyrings";
 
 type IncomingRequest = Parameters<ExportedHandlerFetchHandler>[0];
 
@@ -168,9 +169,15 @@ export function createExports(manifest: SSRManifest) {
           .prepare("DELETE FROM rate_limits WHERE reset_at < ?")
           .bind(Date.now())
           .run();
+        // Synced "Recent documents" keyrings unused for 12 months are deleted.
+        const kr = await env.DB
+          .prepare("DELETE FROM keyrings WHERE used_at < ?")
+          .bind(new Date(Date.now() - KEYRING_TTL_MS).toISOString())
+          .run();
         console.warn(
           `Cron cleanup: deleted ${result.meta?.changes || 0} expired documents, ` +
-            `${rl.meta?.changes || 0} stale rate-limit rows`
+            `${rl.meta?.changes || 0} stale rate-limit rows, ` +
+            `${kr.meta?.changes || 0} unused keyrings`
         );
       },
     } satisfies ExportedHandler<Env>,

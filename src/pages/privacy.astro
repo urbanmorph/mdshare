@@ -41,7 +41,7 @@ const schema = {
       <div class="prose-docs">
         <h1>Privacy Policy</h1>
 
-        <p class="text-sm text-neutral-500">Effective 2026-05-03 · Last updated 2026-07-10</p>
+        <p class="text-sm text-neutral-500">Effective 2026-05-03 · Last updated 2026-10-23</p>
 
         <p class="lead">
           mdshare is a free markdown sharing service. No accounts, no login, minimal data — and what little we collect is described in full below.
@@ -56,6 +56,7 @@ const schema = {
           <li><strong>IP address and user agent</strong>, transiently logged via Cloudflare for abuse detection. Subject to Cloudflare's standard retention policy.</li>
           <li><strong>Integration name and version</strong> — our official integrations (VS Code extension, Obsidian plugin, MCP server, etc.) send a <code>User-Agent: mdshare-&lt;integration&gt;/&lt;version&gt;</code> header on upload requests so we can attribute traffic by integration. Aggregate counts only — no personal identifiers.</li>
           <li><strong>Aggregate page-view counts</strong> via Cloudflare Web Analytics — no personal identifiers, no cross-site tracking, no cookies.</li>
+          <li><strong>An encrypted copy of your recent-documents list, only if you turn on sync</strong> — see <a href="#sync">Recent documents sync</a>.</li>
         </ul>
 
         <h2 id="what-we-dont-collect">What we don't collect</h2>
@@ -82,6 +83,17 @@ const schema = {
           set it later to keep the document longer, or bring it forward to have it deleted sooner.
           You can also <strong>revoke individual share links</strong> to cut off access
           immediately. For immediate full deletion, contact us at the email below.
+        </p>
+
+        <h2 id="sync">Recent documents sync (optional)</h2>
+        <p>
+          Your recent-documents list, including its admin links, is kept in your browser. If you
+          turn on sync, mdshare also stores an <strong>encrypted copy</strong> of that list so you
+          can open it on your other devices. It is encrypted in your browser with a key that only
+          your devices and your private sync link hold; mdshare can't read it and doesn't know
+          whose it is. If you add a passkey, it unlocks the same copy; mdshare never receives the
+          passkey, your name or any biometric. The copy is <strong>deleted after 12 months without
+          use</strong>, or immediately when you turn sync off on any of your devices.
         </p>
 
         <h2 id="storage">Where data is stored</h2>
