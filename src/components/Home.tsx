@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from "react";
 import { Spinner } from "../../components/ui/spinner";
 import { getRecentDocsSnapshot, getServerRecentDocs, subscribeRecentDocs } from "../../lib/recent-docs";
+import { RecentSync } from "./RecentSync";
 
 interface CreateResult {
   document_id: string;
@@ -422,6 +423,9 @@ export default function Home() {
             )}
           </div>
         )}
+        <div className={recentDocs.length > 0 ? "" : "mt-4 pt-4 border-t border-neutral-900"}>
+          <RecentSync hasDocs={recentDocs.length > 0} />
+        </div>
 
       </div>
     </main>

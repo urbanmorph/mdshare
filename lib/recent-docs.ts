@@ -14,32 +14,50 @@ export interface RecentDoc {
   visitedAt: number;
 }
 
+/** Keeps the newest MAX_ADMIN admin entries and MAX_RECENT others (list is newest first). */
+export function capRecent(list: RecentDoc[]): RecentDoc[] {
+  let admin = 0;
+  let other = 0;
+  return list.filter((d) =>
+    d.permission === "admin" ? ++admin <= MAX_ADMIN : ++other <= MAX_RECENT
+  );
+}
+
 /** Pure upsert (testable): newest first, deduped by doc+key, capped per kind. */
 export function addRecentDoc(
   list: RecentDoc[],
   doc: Omit<RecentDoc, "visitedAt">,
   now: number
 ): RecentDoc[] {
-  const next = [
+  return capRecent([
     { ...doc, visitedAt: now },
     ...list.filter((d) => !(d.id === doc.id && d.key === doc.key)),
-  ];
-  let admin = 0;
-  let other = 0;
-  return next.filter((d) =>
-    d.permission === "admin" ? ++admin <= MAX_ADMIN : ++other <= MAX_RECENT
-  );
+  ]);
 }
 
-export function saveRecentDoc(doc: Omit<RecentDoc, "visitedAt">) {
+/** Fired on this page when the list changes here (the "storage" event covers other tabs). */
+export const RECENT_CHANGED = "mdshare:recent-changed";
+
+export function readRecentDocs(storage: Storage = localStorage): RecentDoc[] {
   try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(addRecentDoc(getRecentDocsSnapshot(), doc, Date.now()))
-    );
+    const list = JSON.parse(storage.getItem(STORAGE_KEY) || "[]");
+    return Array.isArray(list) ? (list as RecentDoc[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeRecentDocs(list: RecentDoc[], storage: Storage = localStorage) {
+  try {
+    storage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch {
     // localStorage may be unavailable (private mode, quota); silently no-op.
   }
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(RECENT_CHANGED));
+}
+
+export function saveRecentDoc(doc: Omit<RecentDoc, "visitedAt">) {
+  writeRecentDocs(addRecentDoc(readRecentDocs(), doc, Date.now()));
 }
 
 // Store adapter for React's useSyncExternalStore: the snapshot must keep the
@@ -70,5 +88,9 @@ export const getServerRecentDocs = (): RecentDoc[] => NONE;
 
 export function subscribeRecentDocs(onChange: () => void): () => void {
   window.addEventListener("storage", onChange);
-  return () => window.removeEventListener("storage", onChange);
+  window.addEventListener(RECENT_CHANGED, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(RECENT_CHANGED, onChange);
+  };
 }

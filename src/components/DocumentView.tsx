@@ -13,6 +13,7 @@ import type { CommentAnchor } from "../../components/editor/comment-highlight";
 import { useDocumentWS } from "../../lib/use-document-ws";
 import { useDisplayName } from "../../lib/use-display-name";
 import { saveRecentDoc } from "../../lib/recent-docs";
+import { syncRecentSoon } from "../../lib/recent-sync";
 import { useUnreadCount, seedLastSeenIfMissing, pruneLastSeen } from "../../lib/lastseen";
 
 interface DocumentViewProps {
@@ -121,6 +122,12 @@ export function DocumentView({
       permission,
     });
   }, [doc.id, currentTitle, tokenKey, permission]);
+
+  // Once per document opened (not per title keystroke): send the visit to the
+  // user's other devices if they turned sync on.
+  useEffect(() => {
+    syncRecentSoon();
+  }, [doc.id, tokenKey]);
 
   // Seed lastseen on first visit so the badge doesn't claim everything is
   // unread on a doc you've never opened. Prune oldest entries to keep
