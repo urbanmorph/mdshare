@@ -6,6 +6,7 @@ import { App } from "astro/app";
 import { handle } from "@astrojs/cloudflare/handler";
 import { tokenPrefix, verifyToken } from "../lib/tokens";
 import { KEYRING_TTL_MS } from "../lib/keyrings";
+import { DELETE_EXPIRED_DOCUMENTS } from "../lib/cleanup";
 
 type IncomingRequest = Parameters<ExportedHandlerFetchHandler>[0];
 
@@ -160,9 +161,7 @@ export function createExports(manifest: SSRManifest) {
       ) {
         // Daily cron: clean up expired documents
         const result = await env.DB
-          .prepare(
-            "DELETE FROM documents WHERE expires_at IS NOT NULL AND expires_at < datetime('now')"
-          )
+          .prepare(DELETE_EXPIRED_DOCUMENTS)
           .run();
         // Sweep expired rate-limit windows so the table stays bounded.
         const rl = await env.DB
