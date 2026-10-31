@@ -12,6 +12,7 @@ type IncomingRequest = Parameters<ExportedHandlerFetchHandler>[0];
 
 // Re-export the Durable Object class
 import { DocumentWebSocket } from "../worker/document-ws";
+import { isSessionGone, logUrl } from "../lib/ws-errors";
 export { DocumentWebSocket };
 
 interface Env {
@@ -100,8 +101,21 @@ export function createExports(manifest: SSRManifest) {
               headers: request.headers,
             });
           } catch (err) {
+            // the document's live session restarted under the upgrade (a deploy, or
+            // Cloudflare's maintenance): the browser reconnects, so ask it to
+            if (isSessionGone(err)) {
+              console.warn("WS upgrade: live session restarting, client will retry", {
+                path: url.pathname,
+                colo: (request as IncomingRequest).cf?.colo,
+                error: err instanceof Error ? err.message : String(err),
+              });
+              return new Response("Live sync is restarting. Reconnect.", {
+                status: 503,
+                headers: { "Retry-After": "1" },
+              });
+            }
             console.error("WS upgrade failed", {
-              url: request.url,
+              url: logUrl(request.url),
               path: url.pathname,
               colo: (request as IncomingRequest).cf?.colo,
               error:

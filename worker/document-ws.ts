@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { isSessionGone, logUrl, sendAll } from "../lib/ws-errors";
 
 /**
  * Durable Object that manages WebSocket connections for a single document.
@@ -14,12 +15,7 @@ export class DocumentWebSocket extends DurableObject {
       // Non-WebSocket: broadcast an update to all connected clients (called by API routes)
       if (request.headers.get("Upgrade") !== "websocket") {
         if (request.method === "POST" && url.pathname.endsWith("/broadcast")) {
-          const data = await request.text();
-          for (const conn of this.ctx.getWebSockets()) {
-            if (conn.readyState === WebSocket.OPEN) {
-              conn.send(data);
-            }
-          }
+          sendAll(this.ctx.getWebSockets(), await request.text());
           return new Response("ok");
         }
         return new Response("Expected WebSocket", { status: 426 });
@@ -37,7 +33,7 @@ export class DocumentWebSocket extends DurableObject {
       return new Response(null, { status: 101, webSocket: client });
     } catch (err) {
       console.error("DocumentWebSocket.fetch failed", {
-        url: request.url,
+        url: logUrl(request.url),
         method: request.method,
         upgrade: request.headers.get("Upgrade"),
         error:
@@ -67,11 +63,7 @@ export class DocumentWebSocket extends DurableObject {
         if (permission !== "edit" && permission !== "admin") return;
 
         // Broadcast to all OTHER connected clients
-        for (const conn of this.ctx.getWebSockets()) {
-          if (conn !== ws && conn.readyState === WebSocket.OPEN) {
-            conn.send(message);
-          }
-        }
+        sendAll(this.ctx.getWebSockets(), message, ws);
       }
 
       if (data.type === "ping") {
@@ -87,7 +79,12 @@ export class DocumentWebSocket extends DurableObject {
    */
   async webSocketClose(ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): Promise<void> {
     this.connections.delete(ws);
-    this.broadcastPresence();
+    try {
+      this.broadcastPresence();
+    } catch (err) {
+      // a close on a session Cloudflare is already retiring: the others reconnect anyway
+      if (!isSessionGone(err)) throw err;
+    }
   }
 
   /**
@@ -99,11 +96,6 @@ export class DocumentWebSocket extends DurableObject {
 
   private broadcastPresence() {
     const count = this.ctx.getWebSockets().length;
-    const msg = JSON.stringify({ type: "presence", count });
-    for (const conn of this.ctx.getWebSockets()) {
-      if (conn.readyState === WebSocket.OPEN) {
-        conn.send(msg);
-      }
-    }
+    sendAll(this.ctx.getWebSockets(), JSON.stringify({ type: "presence", count }));
   }
 }
