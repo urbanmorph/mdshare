@@ -24,7 +24,8 @@ Or add to your AI tool's config:
 ```
 
 Config file locations:
-- **Claude:** `~/.claude/claude_desktop_config.json`
+- **Claude Desktop:** `claude_desktop_config.json` in `~/Library/Application Support/Claude/` (macOS) or `%APPDATA%\Claude\` (Windows)
+- **Claude Code:** `claude mcp add mdshare -- npx -y mdshare-mcp`
 - **Codex CLI:** `~/.codex/config.json`
 - **Gemini CLI:** `~/.gemini/settings.json`
 - **Cursor:** `~/.cursor/mcp.json`

@@ -190,7 +190,7 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
           <pre><code>npx mdshare-mcp</code></pre>
 
           <h4>Claude Desktop / Claude Code</h4>
-          <p>Add to <code>~/.claude/claude_desktop_config.json</code>:</p>
+          <p>Claude Desktop: add to <code>claude_desktop_config.json</code> (macOS: <code>~/Library/Application Support/Claude/</code>; Windows: <code>%APPDATA%\Claude\</code>). Claude Code: <code>claude mcp add mdshare -- npx -y mdshare-mcp</code>, or:</p>
           <pre><code>{`{
   "mcpServers": {
     "mdshare": {

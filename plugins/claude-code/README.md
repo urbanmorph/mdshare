@@ -4,7 +4,7 @@ Wraps the [mdshare-mcp](https://www.npmjs.com/package/mdshare-mcp) server as a C
 
 ## What it does
 
-Adds 14 MCP tools for uploading, reading, editing, commenting on, and versioning markdown documents. Claude calls them automatically when you ask things like:
+Adds 15 MCP tools for uploading, reading, editing, commenting on, and versioning markdown documents. Claude calls them automatically when you ask things like:
 
 - "share this markdown with my team"
 - "publish these notes as a link"
@@ -16,10 +16,11 @@ The MCP server uses `file_path` arguments so large markdown files don't burn con
 ## Install
 
 ```
-/plugin install mdshare@claude-plugins-official
+/plugin marketplace add urbanmorph/mdshare
+/plugin install mdshare@urbanmorph
 ```
 
-Or browse `/plugin > Discover` and search for `mdshare`.
+This installs from mdshare's own plugin marketplace. A listing in Anthropic's official plugin directory has been submitted and is awaiting review.
 
 ## Permissions model
 
