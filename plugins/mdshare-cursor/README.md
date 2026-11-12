@@ -4,7 +4,7 @@ Wraps the [mdshare-mcp](https://www.npmjs.com/package/mdshare-mcp) npm package s
 
 ## What it adds to Cursor
 
-- 14 MCP tools for upload / read / edit / comment / version on markdown documents
+- 15 MCP tools for upload / read / edit / comment / version on markdown documents
 - A skill (`mdshare-tools`) that activates on natural-language requests like *"share this markdown with my designer for feedback"* — Cursor picks the right tool, infers the right permission tier, returns a hosted URL
 
 ## Install

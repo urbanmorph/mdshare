@@ -39,7 +39,7 @@ const faqSchema = {
       "name": "Can I use the plugin and a manual MCP config at the same time?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "You can, but you don't need to. The plugin includes the same MCP server you'd configure manually. If you have both, you may end up with two registrations of the same MCP server in Claude Code — uninstall the manual one or remove it from claude_desktop_config.json."
+        "text": "You can, but you don't need to. The plugin includes the same MCP server you'd configure manually. If you have both, you may end up with two registrations of the same MCP server in Claude Code — remove the manual one (claude mcp remove mdshare)."
       }
     },
     {
@@ -98,7 +98,7 @@ const faqSchema = {
 
         <p>That installs:</p>
         <ul class="list-disc pl-5 space-y-1 text-sm text-neutral-400">
-          <li>The mdshare MCP server — 14 tools for uploading, reading, editing, commenting on, and versioning markdown documents</li>
+          <li>The mdshare MCP server — 15 tools for uploading, reading, editing, commenting on, and versioning markdown documents</li>
           <li>A skill (<code>mdshare-tools</code>) that activates Claude on natural-language requests</li>
         </ul>
 
@@ -127,7 +127,7 @@ const faqSchema = {
 
         <p>Listed on <a href="https://cursor.directory/plugins/mdshare" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">Cursor Directory</a> — click <strong>Add to Cursor</strong> on the listing page to install in one step.</p>
 
-        <p>Same MCP server, same 14 tools, same <code>mdshare-tools</code> skill as the Claude Code plugin. The skill activates on phrases like "share this markdown" or "give me a comment link for this doc".</p>
+        <p>Same MCP server, same 15 tools, same <code>mdshare-tools</code> skill as the Claude Code plugin. The skill activates on phrases like "share this markdown" or "give me a comment link for this doc".</p>
 
         <p><strong>Manual install (skip the directory):</strong> add to <code>~/.cursor/mcp.json</code>:</p>
 
@@ -147,7 +147,7 @@ const faqSchema = {
         <p>
           You can absolutely use mdshare via raw MCP config — see the
           <a href="/share-markdown-with-ai" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">manual setup guide</a>.
-          Same underlying server, same 14 tools. The plugin adds:
+          Same underlying server, same 15 tools. The plugin adds:
         </p>
 
         <ul class="list-disc pl-5 space-y-1 text-sm text-neutral-400">
@@ -203,8 +203,8 @@ const faqSchema = {
         <p>
           You can, but you don't need to. The plugin includes the same MCP server you'd configure
           manually. If you have both, you may end up with two registrations of the same MCP
-          server in Claude Code — uninstall the manual one or remove it from
-          <code>claude_desktop_config.json</code>.
+          server in Claude Code — remove the manual one with
+          <code>claude mcp remove mdshare</code>.
         </p>
 
         <h3>What permissions does the plugin require?</h3>

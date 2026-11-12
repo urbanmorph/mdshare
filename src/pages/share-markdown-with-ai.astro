@@ -126,7 +126,7 @@ const faqSchema = {
         <h3 id="claude-desktop">Claude Desktop &amp; Claude Code</h3>
         <p><strong>Easiest install</strong> — via the bundled plugin: <a href="/install-mdshare-plugin" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">install guide</a>. One command, no JSON to edit.</p>
 
-        <p>Or add to <code>~/.claude/claude_desktop_config.json</code> manually:</p>
+        <p>Or add it to Claude Desktop's <code>claude_desktop_config.json</code> manually (macOS: <code>~/Library/Application Support/Claude/</code>; Windows: <code>%APPDATA%\Claude\</code>). In Claude Code, run <code>claude mcp add mdshare -- npx -y mdshare-mcp</code>.</p>
         <pre><code>{`{
   "mcpServers": {
     "mdshare": {
@@ -190,7 +190,7 @@ const faqSchema = {
 
         <h2 id="tools">What the LLM can do</h2>
 
-        <p>The MCP server exposes 14 tools across four groups. Each is callable by the model as needed, with no extra prompting required.</p>
+        <p>The MCP server exposes 15 tools across four groups. Each is callable by the model as needed, with no extra prompting required.</p>
 
         <h3 id="tools-documents">Documents</h3>
         <ul class="list-disc pl-5 space-y-1 text-sm text-neutral-400">
@@ -206,6 +206,7 @@ const faqSchema = {
           <li><code>generate_link</code> — create a new view/comment/edit/admin link, optionally with expiry</li>
           <li><code>revoke_link</code> — invalidate a specific share link</li>
           <li><code>list_links</code> — see all active links for a document</li>
+          <li><code>set_expiry</code> — change when the document auto-deletes (up to a year out)</li>
           <li><code>get_admin_url</code> — retrieve the admin URL (for direct user request only)</li>
         </ul>
 

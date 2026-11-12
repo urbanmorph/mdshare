@@ -7,7 +7,7 @@ license: MIT
 
 # mdshare — markdown sharing via MCP
 
-mdshare is a free, no-login markdown sharing service at mdshare.live. This skill orchestrates 14 MCP tools that let Claude upload, read, edit, comment on, and version markdown documents.
+mdshare is a free, no-login markdown sharing service at mdshare.live. This skill orchestrates 15 MCP tools that let Claude upload, read, edit, comment on, and version markdown documents.
 
 ## When to use
 
@@ -45,6 +45,7 @@ Returns `share_url`. Admin URL is stored locally; surface only if explicitly ask
 - `generate_link(document_id, permission)` — `permission` is one of `admin`, `edit`, `comment`, `view`
 - `revoke_link(token)` — invalidate a specific link
 - `list_links(document_id)` — see all active links
+- `set_expiry(document_id, expires_at)` — change when the document auto-deletes (a future ISO 8601 date, at most 1 year out; admin only)
 
 ### Comments
 - `post_comment(document_id, content, anchor_text?)` — `anchor_text` creates an inline-anchored comment
