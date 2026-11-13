@@ -12,6 +12,7 @@ Free markdown sharing with no login: upload a file, get a link, and collaborate 
 [![Obsidian plugin](https://img.shields.io/badge/Obsidian-Community%20Plugin-7C3AED?logo=obsidian&logoColor=white)](https://community.obsidian.md/plugins/mdshare)
 
 [![mdshare MCP server: tool definition quality on Glama](https://glama.ai/mcp/servers/urbanmorph/mdshare/badges/score.svg)](https://glama.ai/mcp/servers/urbanmorph/mdshare)
+[![mdshare MCP server on mcptry](https://mcptry.com/badge/io.github.sathya-sankaran/mdshare)](https://mcptry.com/servers/io.github.sathya-sankaran/mdshare)
 
 **[mdshare.live](https://mdshare.live)** | **[API docs](https://mdshare.live/docs)** | **[Use with AI](https://mdshare.live/share-markdown-with-ai)** | **[Plugins](https://mdshare.live/install-mdshare-plugin)** | **[About](https://mdshare.live/about)**
 
