@@ -105,9 +105,8 @@ const ogImage = Astro.props.ogImage ?? `${siteUrl}/og.png`;
   </head>
   <body class="min-h-full flex flex-col bg-neutral-950 text-neutral-200" style="font-family: 'Geist', 'Noto Sans', 'Noto Naskh Arabic', 'Noto Sans Hebrew', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans KR', 'Noto Sans Devanagari', 'Noto Sans Thai', system-ui, sans-serif;">
     <slot />
-    <!-- Cloudflare Web Analytics. Auto-install is set in the dashboard but
-         doesn't inject for Worker-served responses — this tag is the path. -->
-    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "360b73a366584eed8f0cf229f7f4d4a1"}'></script>
+    <!-- Cloudflare Web Analytics: auto-install injects the beacon into every page, the Worker's
+         included. Don't add one here (see lib/analytics-beacon.test.ts). -->
   </body>
 </html>
 
