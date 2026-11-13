@@ -1,12 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.sathya-sankaran/mdshare",
+  "title": "mdshare",
   "description": "Free markdown sharing. Upload, get links, collaborate. No login needed.",
+  "websiteUrl": "https://mdshare.live",
   "repository": {
     "url": "https://github.com/urbanmorph/mdshare",
     "source": "github"
   },
-  "version": "1.5.0",
+  "icons": [
+    { "src": "https://mdshare.live/logo.svg", "mimeType": "image/svg+xml", "sizes": ["any"] },
+    { "src": "https://mdshare.live/apple-touch-icon.png", "mimeType": "image/png", "sizes": ["180x180"] }
+  ],
+  "version": "1.5.1",
   "packages": [
     {
       "registryType": "npm",
