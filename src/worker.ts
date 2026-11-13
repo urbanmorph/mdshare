@@ -5,8 +5,7 @@ import type { SSRManifest } from "astro";
 import { App } from "astro/app";
 import { handle } from "@astrojs/cloudflare/handler";
 import { tokenPrefix, verifyToken } from "../lib/tokens";
-import { KEYRING_TTL_MS } from "../lib/keyrings";
-import { DELETE_EXPIRED_DOCUMENTS } from "../lib/cleanup";
+import { runCleanup } from "../lib/cleanup";
 
 type IncomingRequest = Parameters<ExportedHandlerFetchHandler>[0];
 
@@ -188,25 +187,8 @@ export function createExports(manifest: SSRManifest) {
         env: Env,
         _ctx: ExecutionContext
       ) {
-        // Daily cron: clean up expired documents
-        const result = await env.DB
-          .prepare(DELETE_EXPIRED_DOCUMENTS)
-          .run();
-        // Sweep expired rate-limit windows so the table stays bounded.
-        const rl = await env.DB
-          .prepare("DELETE FROM rate_limits WHERE reset_at < ?")
-          .bind(Date.now())
-          .run();
-        // Synced "Recent documents" keyrings unused for 12 months are deleted.
-        const kr = await env.DB
-          .prepare("DELETE FROM keyrings WHERE used_at < ?")
-          .bind(new Date(Date.now() - KEYRING_TTL_MS).toISOString())
-          .run();
-        console.warn(
-          `Cron cleanup: deleted ${result.meta?.changes || 0} expired documents, ` +
-            `${rl.meta?.changes || 0} stale rate-limit rows, ` +
-            `${kr.meta?.changes || 0} unused keyrings`
-        );
+        // Daily cron: expired documents, stale rate-limit windows, unused keyrings (lib/cleanup.ts)
+        await runCleanup(env.DB, Date.now());
       },
     } satisfies ExportedHandler<Env>,
     DocumentWebSocket,
