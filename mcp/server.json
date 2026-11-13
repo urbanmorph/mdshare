@@ -9,10 +9,22 @@
     "source": "github"
   },
   "icons": [
-    { "src": "https://mdshare.live/logo.svg", "mimeType": "image/svg+xml", "sizes": ["any"] },
-    { "src": "https://mdshare.live/apple-touch-icon.png", "mimeType": "image/png", "sizes": ["180x180"] }
+    {
+      "src": "https://mdshare.live/logo.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": [
+        "any"
+      ]
+    },
+    {
+      "src": "https://mdshare.live/apple-touch-icon.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "180x180"
+      ]
+    }
   ],
-  "version": "1.5.1",
+  "version": "1.6.0",
   "packages": [
     {
       "registryType": "npm",
@@ -21,6 +33,12 @@
       "transport": {
         "type": "stdio"
       }
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mdshare.live/mcp"
     }
   ]
 }

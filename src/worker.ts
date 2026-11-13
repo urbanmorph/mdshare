@@ -13,6 +13,8 @@ type IncomingRequest = Parameters<ExportedHandlerFetchHandler>[0];
 // Re-export the Durable Object class
 import { DocumentWebSocket } from "../worker/document-ws";
 import { isSessionGone, logUrl } from "../lib/ws-errors";
+import { handleMcp } from "../lib/hosted-mcp";
+import { checkRateLimit } from "../lib/rate-limit";
 export { DocumentWebSocket };
 
 interface Env {
@@ -66,6 +68,19 @@ export function createExports(manifest: SSRManifest) {
         ctx: ExecutionContext
       ): Promise<Response> {
         const url = new URL(request.url);
+
+        // The hosted, read-only MCP server (lib/hosted-mcp.ts). Its reads go to the API in-process,
+        // so a share key never appears in a request URL that Cloudflare logs.
+        if (url.pathname === "/mcp") {
+          const ip = request.headers.get("cf-connecting-ip") || "unknown";
+          return handleMcp(request, {
+            allow: () => checkRateLimit(ip, "mcp", { max: 60, windowSec: 60 }).allowed,
+            readApi: (path) =>
+              handle(manifest, app, new Request(new URL(path, url.origin), {
+                headers: { accept: "application/json", "cf-connecting-ip": ip, "user-agent": "mdshare-hosted-mcp/1.6.0" },
+              }) as IncomingRequest, env, ctx),
+          });
+        }
 
         // Intercept WebSocket upgrades before they reach Astro
         if (
@@ -133,7 +148,7 @@ export function createExports(manifest: SSRManifest) {
           response = await handle(manifest, app, request, env, ctx);
         } catch (err) {
           console.error("Astro handler failed", {
-            url: request.url,
+            url: logUrl(request.url),
             method: request.method,
             error:
               err instanceof Error

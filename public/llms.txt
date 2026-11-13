@@ -6,6 +6,7 @@ mdshare turns any markdown into a shareable link. The primary interface is the M
 
 ## MCP server
 
+- Hosted, read only: `https://mdshare.live/mcp` (Streamable HTTP, no install). Pass a share link to `read_document`, `list_comments` or `get_versions`. It refuses admin links and stores or logs no keys; to upload or edit, use the npm package.
 - [mdshare-mcp on npm](https://www.npmjs.com/package/mdshare-mcp): install and run with `npx mdshare-mcp` (registry id `io.github.sathya-sankaran/mdshare`)
 - [MCP setup guide](https://mdshare.live/share-markdown-with-ai): connect Claude, ChatGPT, Gemini CLI, Cursor, or Windsurf
 

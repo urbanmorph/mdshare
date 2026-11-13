@@ -7,8 +7,11 @@
   "placement": {
     "mode": "smart"
   },
+  // Our own console logs only. Invocation logs would keep each request's URL, and API URLs carry
+  // their share key (?key=...); lib/ws-errors.ts logUrl keeps keys out of the logs we write.
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "logs": { "invocation_logs": false }
   },
   "assets": {
     "directory": "./dist",
