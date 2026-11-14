@@ -161,7 +161,8 @@ select:focus-visible {
 .prose-viewer pre code { display: block; }
 .tiptap a, .prose-viewer a { color: var(--ed-link); text-decoration: underline; }
 .tiptap hr, .prose-viewer hr { border: none; border-top: 1px solid var(--ed-hr); margin: 1.5rem 0; }
-.tiptap img, .prose-viewer img { max-width: 100%; border-radius: 0.5rem; }
+.tiptap img, .prose-viewer img { max-width: 100%; height: auto; border-radius: 0.5rem; }
+.tiptap img.ProseMirror-selectednode { outline: 2px solid #6366f1; }
 .tiptap strong, .prose-viewer strong { color: var(--ed-strong); }
 
 /* Tables */
