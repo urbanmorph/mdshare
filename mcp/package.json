@@ -1,12 +1,22 @@
 {
   "name": "mdshare-mcp",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "mcpName": "io.github.sathya-sankaran/mdshare",
-  "description": "MCP server for mdshare — share markdown instantly via AI",
+  "description": "Share markdown from your AI or your terminal: a link anyone can comment on and edit, no account. MCP server and command line for mdshare.",
   "type": "module",
   "main": "index.js",
   "bin": {
     "mdshare-mcp": "index.js"
+  },
+  "files": [
+    "index.js",
+    "src/"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "keywords": [
     "mcp",
@@ -14,7 +24,8 @@
     "sharing",
     "collaboration",
     "mdshare",
-    "model-context-protocol"
+    "model-context-protocol",
+    "cli"
   ],
   "author": "UrbanMorph",
   "license": "MIT",
