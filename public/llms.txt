@@ -2,13 +2,23 @@
 
 > Share markdown as a link anyone can comment on and edit, with no account. Free. Upload markdown, get a shareable link, collaborate in real time; works from the browser and from AI tools via MCP.
 
-mdshare turns any markdown into a shareable link. The primary interface is the MCP server (`npx mdshare-mcp`), which works with Claude, ChatGPT/Codex, Gemini CLI, Cursor, and Windsurf. MCP tools: `upload_markdown`, `read_document`, `update_document`, `patch_document`, `generate_link`, `list_links`, `revoke_link`, `list_comments`, `post_comment`, `resolve_comment`, `get_versions`, `list_my_documents`, `get_admin_url`, `register_document`. The bundled `mdshare-tools` skill auto-invokes on prompts like "share this markdown", "publish my notes", or "give me a link for this doc".
+mdshare turns any markdown into a shareable link. The primary interface is the MCP server (`npx mdshare-mcp`; the same package is also a command line), which works with Claude, ChatGPT/Codex, Gemini CLI, Cursor, and Windsurf. MCP tools: `upload_markdown`, `read_document`, `update_document`, `patch_document`, `generate_link`, `list_links`, `revoke_link`, `list_comments`, `post_comment`, `resolve_comment`, `get_versions`, `list_my_documents`, `get_admin_url`, `register_document`. The bundled `mdshare-tools` skill auto-invokes on prompts like "share this markdown", "publish my notes", or "give me a link for this doc".
 
 ## MCP server
 
 - Hosted, read only: `https://mdshare.live/mcp` (Streamable HTTP, no install). Pass a share link to `read_document`, `list_comments` or `get_versions`. It refuses admin links and stores or logs no keys; to upload or edit, use the npm package.
 - [mdshare-mcp on npm](https://www.npmjs.com/package/mdshare-mcp): install and run with `npx mdshare-mcp` (registry id `io.github.sathya-sankaran/mdshare`)
 - [MCP setup guide](https://mdshare.live/share-markdown-with-ai): connect Claude, ChatGPT, Gemini CLI, Cursor, or Windsurf
+
+## Command line
+
+The same npm package is a command line when given a subcommand (with no arguments it runs the MCP server). It shares admin keys with the MCP server, stores them locally and never prints them.
+
+- `npx mdshare-mcp upload notes.md`: print a share link (comment permission by default; `--permission view|comment|edit`, `--title`, `--expires 7d`); `-` reads from stdin
+- `npx mdshare-mcp update <doc-id> notes.md`: replace the content; refuses if someone edited it since your last upload, update or read (`--base-hash`, `--force`)
+- `npx mdshare-mcp read <doc-id|link> [-o out.md]`, `ls` (your stored documents)
+- `npx mdshare-mcp link <doc-id> --view|--comment|--edit [--expires 30d]`, `links <doc-id>`, `revoke <doc-id> <link-token>`, `expire <doc-id> <30d|12h>`
+- `npx mdshare-mcp --help`: every command
 
 ## Plugins
 
