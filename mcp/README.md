@@ -1,8 +1,8 @@
 # mdshare-mcp
 
-MCP server for [mdshare](https://mdshare.live) — share markdown instantly, free.
+Share markdown from your AI or your terminal with [mdshare](https://mdshare.live): you get a link, and **anyone with it can comment and edit, with no account**. Free.
 
-Works with Claude, ChatGPT/Codex, Gemini CLI, Cursor, and Windsurf.
+One package, two modes: an MCP server for Claude, ChatGPT/Codex, Gemini CLI, Cursor and Windsurf, and a [command line](#command-line) for scripts and CI.
 
 ## Install
 
@@ -39,6 +39,28 @@ For **Claude Code / Claude Desktop**, you can skip manual config and install via
 ```
 
 For **Cursor**, install via the [Cursor Directory listing](https://cursor.directory/plugins/mdshare) (click "Add to Cursor") instead of editing `~/.cursor/mcp.json` manually.
+
+## Command line
+
+With a command, `mdshare-mcp` is a CLI (with no arguments it stays the MCP server, so client configs don't change). Content comes from a file or `-` for stdin and never passes through a chat.
+
+```bash
+mdshare-mcp upload notes.md                      # prints a share link (comment); the admin key is stored, not shown
+pandoc report.docx -t gfm | mdshare-mcp upload - --title "Q3 report" --expires 30d
+mdshare-mcp update <doc-id> notes.md             # refuses if someone changed it since your last upload, update or read
+mdshare-mcp read <doc-id|link> -o current.md
+mdshare-mcp ls                                   # documents stored on this machine
+mdshare-mcp link <doc-id> --edit --expires 30d   # also --view, --comment
+mdshare-mcp comments <doc-id>; mdshare-mcp comment <doc-id> "Looks good"; mdshare-mcp resolve <doc-id> <comment-id>
+mdshare-mcp links <doc-id>; mdshare-mcp revoke <doc-id> <link-token>; mdshare-mcp expire <doc-id> 90d; mdshare-mcp versions <doc-id>
+mdshare-mcp admin-url <doc-id>                   # the only command that prints the admin URL
+```
+
+- **One link that stays current:** in CI or cron, `upload` once, then `update <doc-id> report.md` on every run. Because `update` is based on the version you last wrote or read, it never overwrites a teammate's edits: on a conflict nothing is written and it exits 1; `read -o`, merge, and update again (`--force` overwrites on purpose).
+- `--json` on any command for scripts. Results go to stdout, messages to stderr; exit codes 0 ok, 1 failure, 2 bad usage.
+- Keys come from the same store as the MCP tools (`~/.mdshare-mcp/documents.json`), never from arguments, so they stay out of shell history.
+- A document lives at most a year ahead (`expire` up to `365d`).
+- `npm i -g mdshare-mcp`, or `npx -y mdshare-mcp upload notes.md`. The npm name `mdshare` belongs to another project; if you like, `alias mdshare='npx -y mdshare-mcp'`.
 
 ## Read a link without installing (hosted)
 

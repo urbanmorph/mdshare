@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.sathya-sankaran/mdshare",
   "title": "mdshare",
-  "description": "Free markdown sharing. Upload, get links, collaborate. No login needed.",
+  "description": "Share markdown as a link anyone can comment on and edit, no account. MCP server and CLI.",
   "websiteUrl": "https://mdshare.live",
   "repository": {
     "url": "https://github.com/urbanmorph/mdshare",
@@ -24,12 +24,12 @@
       ]
     }
   ],
-  "version": "1.6.0",
+  "version": "1.7.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "mdshare-mcp",
-      "version": "1.5.0",
+      "version": "1.6.0",
       "transport": {
         "type": "stdio"
       }
