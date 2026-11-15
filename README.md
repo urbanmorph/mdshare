@@ -1,6 +1,6 @@
 # mdshare
 
-Free markdown sharing with no login: upload a file, get a link, and collaborate with comments, live edits and permission links.
+Share markdown as a link anyone can comment on and edit, with no account. Free: upload a file, get a link, and collaborate with comments, live edits and permission links.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![MCP](https://img.shields.io/npm/v/mdshare-mcp?label=MCP&color=indigo)](https://www.npmjs.com/package/mdshare-mcp)
