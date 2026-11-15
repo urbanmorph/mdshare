@@ -6,6 +6,7 @@ import { encryptToken } from "../../../lib/token-crypto";
 import { sanitizeMarkdown, contentHash, validateIsText, sanitizeTitle } from "../../../lib/sanitize";
 import { checkRateLimit, checkDurableRateLimit, rateLimitResponse } from "../../../lib/rate-limit";
 import { incrementStat } from "../../../lib/stats";
+import { documentSource } from "../../../lib/document-source";
 
 export const prerender = false;
 
@@ -43,24 +44,7 @@ export const POST: APIRoute = async ({ request }) => {
   const origin = request.headers.get("origin") || "";
   const xSource = request.headers.get("x-source") || "";
 
-  // Classify document source. Order matters — first match wins. See
-  // supporting-docs/document-source-tracking.md for the full rationale.
-  let source: "blank" | "paste" | "upload" | "mcp" | "vscode" | "obsidian" | "api";
-  if (contentType.includes("multipart/form-data")) {
-    source = "upload";
-  } else if (xSource === "blank") {
-    source = "blank";
-  } else if (/^mdshare-mcp\//i.test(userAgent)) {
-    source = "mcp";
-  } else if (/mdshare-vscode/i.test(userAgent)) {
-    source = "vscode";
-  } else if (/mdshare-obsidian|Obsidian/i.test(userAgent)) {
-    source = "obsidian";
-  } else if (/^https?:\/\/(mdshare\.live|localhost(:\d+)?)$/i.test(origin)) {
-    source = "paste";
-  } else {
-    source = "api";
-  }
+  const source = documentSource({ contentType, userAgent, origin, xSource });
 
   if (contentType.includes("multipart/form-data")) {
     const formData = await request.formData();

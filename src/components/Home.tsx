@@ -237,7 +237,7 @@ export default function Home() {
             md<span className="text-indigo-400">share</span>
           </p>
           <h1 className="mt-2 text-neutral-300 text-base font-normal">
-            Share markdown instantly. Free. No login required.
+            Share markdown as a link anyone can comment on and edit. No account, free.
           </h1>
           <p className="mt-1 text-sm text-neutral-400">
             Share markdown files with Claude, ChatGPT, Cursor, and Windsurf via MCP.
