@@ -5,7 +5,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 // Tiptap needs a DOM; register one before loading the editor modules.
 GlobalRegistrator.register();
 const { Editor } = await import("@tiptap/core");
-const { editorExtensions } = await import("./extensions.ts");
+const { editorExtensions, getMarkdown } = await import("./extensions.ts");
 
 let editor: InstanceType<typeof Editor> | undefined;
 
@@ -13,8 +13,7 @@ let editor: InstanceType<typeof Editor> | undefined;
 function roundTrip(markdown: string): string {
   editor?.destroy();
   editor = new Editor({ extensions: editorExtensions({ editable: true }), content: markdown });
-  const storage = editor.storage as unknown as { markdown: { getMarkdown(): string } };
-  return storage.markdown.getMarkdown();
+  return getMarkdown(editor);
 }
 
 after(async () => {

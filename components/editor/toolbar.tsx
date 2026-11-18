@@ -1,6 +1,7 @@
 
-import type { Editor } from "@tiptap/react";
+import { useEditorState, type Editor } from "@tiptap/react";
 import { ShortcutsHelp } from "@/components/ui/shortcuts-help";
+import { toolbarState, promptForLink } from "./toolbar-state";
 
 interface ToolbarProps {
   editor: Editor;
@@ -43,32 +44,34 @@ function Separator() {
 }
 
 export function Toolbar({ editor, lightMode, onToggleLight, isAdmin }: ToolbarProps) {
+  // Re-renders when the selection moves into or out of a mark or block.
+  const active = useEditorState({ editor, selector: ({ editor }) => toolbarState(editor) });
   return (
     <div className="flex items-center gap-0.5 px-2 sm:px-4 py-1.5 sm:py-2 border-b border-neutral-800 bg-neutral-950 flex-wrap sm:flex-nowrap sm:overflow-x-auto sm:scrollbar-thin">
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
-        active={editor.isActive("bold")}
+        active={active.bold}
         title="Bold"
       >
         <b>B</b>
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleItalic().run()}
-        active={editor.isActive("italic")}
+        active={active.italic}
         title="Italic"
       >
         <i>I</i>
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleStrike().run()}
-        active={editor.isActive("strike")}
+        active={active.strike}
         title="Strikethrough"
       >
         <s>S</s>
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleCode().run()}
-        active={editor.isActive("code")}
+        active={active.code}
         title="Inline code"
       >
         <span className="font-mono text-xs">&lt;/&gt;</span>
@@ -78,21 +81,21 @@ export function Toolbar({ editor, lightMode, onToggleLight, isAdmin }: ToolbarPr
 
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        active={editor.isActive("heading", { level: 1 })}
+        active={active.h1}
         title="Heading 1"
       >
         <span className="text-xs">H1</span>
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        active={editor.isActive("heading", { level: 2 })}
+        active={active.h2}
         title="Heading 2"
       >
         <span className="text-xs">H2</span>
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        active={editor.isActive("heading", { level: 3 })}
+        active={active.h3}
         title="Heading 3"
       >
         <span className="text-xs">H3</span>
@@ -102,28 +105,28 @@ export function Toolbar({ editor, lightMode, onToggleLight, isAdmin }: ToolbarPr
 
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBulletList().run()}
-        active={editor.isActive("bulletList")}
+        active={active.bulletList}
         title="Bullet list"
       >
         &#8226;
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        active={editor.isActive("orderedList")}
+        active={active.orderedList}
         title="Ordered list"
       >
         <span className="text-xs">1.</span>
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        active={editor.isActive("blockquote")}
+        active={active.blockquote}
         title="Blockquote"
       >
         &ldquo;
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-        active={editor.isActive("codeBlock")}
+        active={active.codeBlock}
         title="Code block"
       >
         <span className="font-mono text-xs">{"{}"}</span>
@@ -138,22 +141,8 @@ export function Toolbar({ editor, lightMode, onToggleLight, isAdmin }: ToolbarPr
       <Separator />
 
       <ToolbarButton
-        onClick={() => {
-          if (editor.isActive("link")) {
-            const currentUrl = editor.getAttributes("link").href || "";
-            const url = prompt("Edit or clear URL (empty to remove):", currentUrl);
-            if (url === null) return; // cancelled
-            if (url === "") {
-              editor.chain().focus().unsetLink().run();
-            } else {
-              editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-            }
-          } else {
-            const url = prompt("Enter URL:", "https://");
-            if (url) editor.chain().focus().toggleLink({ href: url }).run();
-          }
-        }}
-        active={editor.isActive("link")}
+        onClick={() => promptForLink(editor)}
+        active={active.link}
         title="Link"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -171,7 +160,7 @@ export function Toolbar({ editor, lightMode, onToggleLight, isAdmin }: ToolbarPr
         </svg>
       </ToolbarButton>
 
-      {editor.isActive("table") && (
+      {active.table && (
         <>
           <Separator />
           <ToolbarButton
