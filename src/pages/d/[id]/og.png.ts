@@ -3,8 +3,7 @@ import { initWasm, Resvg } from "@resvg/resvg-wasm";
 // The Cloudflare adapter bundles this .wasm import as a WebAssembly.Module.
 import resvgWasm from "@resvg/resvg-wasm/index_bg.wasm";
 import { getDB } from "../../../../lib/db";
-import { resolveToken } from "../../../../lib/permissions";
-import type { DocumentRow } from "../../../../lib/db-types";
+import { resolveDocument } from "../../../../lib/permissions";
 import { detectScript } from "../../../../lib/detect-script";
 import { stripForOgTitle, wrapTitle, buildCardSvg } from "../../../../lib/og-image";
 
@@ -49,14 +48,7 @@ export const GET: APIRoute = async ({ params, request }) => {
   if (!key) return Response.redirect(FALLBACK, 302);
 
   try {
-    const db = getDB();
-    const resolved = await resolveToken(db, key);
-    if (!resolved || resolved.documentId !== id) return Response.redirect(FALLBACK, 302);
-
-    const doc = await db
-      .prepare("SELECT * FROM documents WHERE id = ?")
-      .bind(id)
-      .first<DocumentRow>();
+    const doc = (await resolveDocument(getDB(), key, id))?.doc;
     if (!doc) return Response.redirect(FALLBACK, 302);
 
     const loc = detectScript(doc.content || doc.title || "");

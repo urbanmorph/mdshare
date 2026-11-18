@@ -172,13 +172,13 @@ export function CommentSidebar({
   return (
     <div className="w-full bg-neutral-950 p-4 overflow-y-auto flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
           Comments ({unresolvedComments.length})
-        </h3>
+        </h2>
         {resolvedComments.length > 0 && (
           <button
             onClick={() => setShowResolved(!showResolved)}
-            className="text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="text-[11px] text-neutral-400 hover:text-neutral-300 transition-colors"
           >
             {showResolved ? "Hide" : "Show"} resolved ({resolvedComments.length})
           </button>
@@ -196,18 +196,18 @@ export function CommentSidebar({
               </div>
               <button
                 onClick={onClearSelection}
-                className="text-neutral-600 hover:text-neutral-400 text-xs shrink-0 px-1"
+                className="text-neutral-400 hover:text-neutral-300 text-xs shrink-0 px-1"
                 title="Remove selection"
               >
                 &times;
               </button>
             </div>
           ) : (
-            <p className="text-[11px] text-neutral-600 mb-2 italic">
+            <p className="text-[11px] text-neutral-400 mb-2 italic">
               Select text in the editor to anchor your comment
             </p>
           )}
-          <p className="text-[11px] text-neutral-600 mb-2">
+          <p className="text-[11px] text-neutral-400 mb-2">
             Commenting as{" "}
             {displayName === "Anonymous" ? (
               <button
@@ -266,7 +266,7 @@ export function CommentSidebar({
 
           if (topLevel.length === 0 && displayComments.length === 0) {
             return (
-              <p className="text-xs text-neutral-600 text-center py-4">
+              <p className="text-xs text-neutral-400 text-center py-4">
                 {comments.length > 0 ? "All comments resolved" : "Select text in the document to leave a comment"}
               </p>
             );
@@ -311,7 +311,7 @@ export function CommentSidebar({
                     <span className="text-xs font-semibold text-neutral-300">
                       {comment.author_name}
                     </span>
-                    <span className="text-[11px] text-neutral-600">
+                    <span className="text-[11px] text-neutral-400">
                       {timeAgo(comment.created_at)}
                     </span>
                     {isResolved && (
@@ -333,7 +333,7 @@ export function CommentSidebar({
                     {canResolve && (
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleResolve(comment.id, isResolved); }}
-                        className="text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors"
+                        className="text-[11px] text-neutral-400 hover:text-neutral-300 transition-colors"
                       >
                         {isResolved ? "Unresolve" : "Resolve"}
                       </button>
@@ -341,7 +341,7 @@ export function CommentSidebar({
                     {canComment && !isResolved && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(""); }}
-                        className="text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors"
+                        className="text-[11px] text-neutral-400 hover:text-neutral-300 transition-colors"
                       >
                         Reply
                       </button>
@@ -362,7 +362,7 @@ export function CommentSidebar({
                           <span className="text-[11px] font-semibold text-neutral-400">
                             {reply.author_name}
                           </span>
-                          <span className="text-[11px] text-neutral-600">
+                          <span className="text-[11px] text-neutral-400">
                             {timeAgo(reply.created_at)}
                           </span>
                         </div>
@@ -401,7 +401,7 @@ export function CommentSidebar({
                       </button>
                       <button
                         onClick={() => { setReplyingTo(null); setReplyText(""); }}
-                        className="px-3 py-1.5 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+                        className="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-300 transition-colors"
                       >
                         Cancel
                       </button>

@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
 import { getDB } from "../../../../lib/db";
-import type { DocumentRow } from "../../../../lib/db";
-import { resolveToken, canPerform } from "../../../../lib/permissions";
+import { resolveToken, resolveDocument, canPerform } from "../../../../lib/permissions";
 import { sanitizeMarkdown, contentHash } from "../../../../lib/sanitize";
 import { nanoid } from "nanoid";
 import { checkRateLimit, rateLimitResponse } from "../../../../lib/rate-limit";
@@ -19,21 +18,13 @@ export const GET: APIRoute = async ({ request, params }) => {
   }
 
   const db = getDB();
-  const resolved = await resolveToken(db, key);
-  if (!resolved || resolved.documentId !== id) {
+  const resolved = await resolveDocument(db, key, id);
+  if (!resolved) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
+  const { doc } = resolved;
 
-  const doc = await db
-    .prepare("SELECT * FROM documents WHERE id = ?")
-    .bind(id)
-    .first<DocumentRow>();
-
-  if (!doc) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const expiresAt = (doc as unknown as { expires_at?: string }).expires_at;
+  const expiresAt = doc.expires_at;
   if (expiresAt && new Date(expiresAt) < new Date()) {
     await db.prepare("DELETE FROM documents WHERE id = ?").bind(id).run();
     return Response.json({ error: "Document has expired" }, { status: 410 });
