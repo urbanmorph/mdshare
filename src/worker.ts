@@ -5,6 +5,8 @@ import type { SSRManifest } from "astro";
 import { App } from "astro/app";
 import { handle } from "@astrojs/cloudflare/handler";
 import { resolveAccess, isExpired } from "../lib/permissions";
+import { SECURITY_HEADERS } from "../lib/security-headers";
+import { MCP_VERSION } from "../lib/version";
 import { runCleanup } from "../lib/cleanup";
 
 type IncomingRequest = Parameters<ExportedHandlerFetchHandler>[0];
@@ -42,7 +44,7 @@ export function createExports(manifest: SSRManifest) {
             allow: () => checkRateLimit(ip, "mcp", { max: 60, windowSec: 60 }).allowed,
             readApi: (path) =>
               handle(manifest, app, new Request(new URL(path, url.origin), {
-                headers: { accept: "application/json", "cf-connecting-ip": ip, "user-agent": "mdshare-hosted-mcp/1.6.0" },
+                headers: { accept: "application/json", "cf-connecting-ip": ip, "user-agent": `mdshare-hosted-mcp/${MCP_VERSION}` },
               }) as IncomingRequest, env, ctx),
           });
         }
@@ -121,17 +123,7 @@ export function createExports(manifest: SSRManifest) {
 
         // Add security headers
         const headers = new Headers(response.headers);
-        headers.set("X-Content-Type-Options", "nosniff");
-        headers.set("X-Frame-Options", "DENY");
-        headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-        headers.set(
-          "Permissions-Policy",
-          "camera=(), microphone=(), geolocation=()"
-        );
-        headers.set(
-          "Content-Security-Policy",
-          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self' data:; connect-src 'self' wss: https:; frame-ancestors 'none'"
-        );
+        for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
 
         if (url.pathname.startsWith("/d/")) {
           headers.set("X-Robots-Tag", "noindex, nofollow");

@@ -10,6 +10,8 @@
 // bharatlas.com. The reads go through `readApi`, the site's own API called in-process (src/worker.ts),
 // so the access checks (token, document, expiry) are the API's own.
 
+import { MCP_VERSION } from "./version.ts";
+
 export type Permission = "view" | "comment" | "edit";
 export type Link = { id: string; key: string; permission: Permission };
 export type Deps = {
@@ -43,7 +45,7 @@ It never takes admin links (keys starting adm_): an admin link controls the docu
 
 To upload, edit, comment, make or revoke links, or set expiry, install the mdshare MCP server: npx -y mdshare-mcp. It keeps admin links on your own machine.`;
 
-const SERVER_INFO = { name: "mdshare", title: "mdshare: read a shared markdown document", version: "1.6.0" };
+const SERVER_INFO = { name: "mdshare", title: "mdshare: read a shared markdown document", version: MCP_VERSION };
 
 const linkProp = {
   type: "string",
