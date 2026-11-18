@@ -41,14 +41,14 @@ Quick reference:
 
 - Upload: `POST /api/documents` (Content-Type: text/markdown, body: raw markdown)
 - Read: `GET /api/d/{id}?key={key}` (Accept: text/markdown for raw)
-- Update: `PUT /api/d/{id}?key={edit_key}` (Content-Type: text/markdown, X-Author: name, optional X-Base-Hash: content_hash your edit is based on; returns 409 with the latest content if the document changed)
+- Update: `PUT /api/d/{id}?key={edit_key}` (Content-Type: text/markdown, X-Author: name, percent-encoded with encodeURIComponent if not ASCII, optional X-Base-Hash: content_hash your edit is based on; saves are atomic: returns 409 with the latest content, and writes nothing, if the document changed)
 - Patch: `PATCH /api/d/{id}?key={edit_key}` (JSON `{operations:[{find,replace,replace_all?}], author?}`) — preferred for small edits to large docs
-- Links: `POST /api/d/{id}/links?key={admin_key}` (`{permission, label, expires_at}`)
+- Links: `POST /api/d/{id}/links?key={admin_key}` (`{permission, label, expires_at}`; `expires_at` must be a future ISO date); change or revoke with `PATCH`/`DELETE /api/links/{link_id}?key={admin_key}`, where `link_id` is the `id` from `GET /api/d/{id}/links` (the admin link can't be changed)
 - Comments: `POST /api/d/{id}/comments?key={key}` (`{content, author_name, anchor_text, parent_id}`) — replies nest one level
 - Versions: `GET /api/d/{id}/versions?key={key}`
 - Presence: `POST /api/d/{id}/presence?key={key}` (`{session_id, name}`)
 - Permissions: `adm_` full control · `edt_` read+write · `cmt_` read+comment · `viw_` read only
-- Limits: 90-day expiry · 10 creates/min, 50/day per IP · 30 updates/min · 20 comments/min · max 50 links/doc · max 10MB · 429 includes Retry-After · expired docs return 410 Gone
+- Limits: 90-day expiry · 10 creates/min, 50/day per IP · 30 updates/min · 20 comments/min · max 50 active links/doc · max 10MB · 429 includes Retry-After · malformed JSON or an over-long field (comment, name, anchor text, link label, title) returns 400 · every API route returns 410 Gone for an expired doc
 
 ## Convert then share
 
