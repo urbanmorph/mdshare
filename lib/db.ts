@@ -19,4 +19,4 @@ export function commentsQuery(db: D1Database, documentId: string): D1PreparedSta
     .bind(documentId);
 }
 
-export type { DocumentRow, LinkRow, CommentRow, VersionRow } from "./db-types";
+export type { DocumentRow } from "./db-types";
