@@ -1,69 +1,42 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { faqJsonLd, type Faq } from "../../lib/faq";
 
 export const prerender = true;
 
 const title = "Install mdshare plugin — Claude Code & Desktop, more clients soon";
 const description = "Install mdshare in Claude Code or Claude Desktop with one command via the urbanmorph plugin marketplace. Skill-based markdown sharing, no manual MCP config required.";
 
-const faqSchema = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "What does the mdshare plugin install?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "The plugin bundles the mdshare-mcp server (npm package) plus a single skill called mdshare-tools that activates Claude on natural-language requests like 'share this markdown' or 'give me a link for this doc'. Once installed, Claude can call 14 mdshare tools to upload, read, edit, comment on, and version markdown documents."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Does the plugin need my admin URL or any account setup?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "No. mdshare has no accounts. The plugin creates a local credential store on your machine for documents you upload through it, so the admin key never appears in the Claude conversation. No login, no API keys to configure."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "How do I update the mdshare plugin?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "The MCP server is published to npm and the plugin installs it via npx -y mdshare-mcp, so you get the latest published version automatically each time the plugin starts. Plugin metadata (skill instructions, manifest) updates when Claude Code refreshes the marketplace, typically on session start."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Can I use the plugin and a manual MCP config at the same time?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "You can, but you don't need to. The plugin includes the same MCP server you'd configure manually. If you have both, you may end up with two registrations of the same MCP server in Claude Code — remove the manual one (claude mcp remove mdshare)."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "What permissions does the plugin require?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Network access to mdshare.live (for uploading and managing documents), and read access to local files when you ask Claude to share a specific file by path. The plugin does not access user data, environment variables, or other files unless the file_path argument is explicitly passed by the user."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "How do I uninstall the plugin?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Run /plugin uninstall mdshare@urbanmorph in any Claude Code session. This removes the plugin and its MCP server from Claude's loaded toolset. To also clear the local credential store, delete ~/.mdshare-mcp/documents.json."
-      }
-    }
-  ]
-};
+const faqs: Faq[] = [
+  {
+    q: "What does the mdshare plugin install?",
+    a: "The plugin bundles the <code>mdshare-mcp</code> server (npm package) plus a single skill (<code>mdshare-tools</code>) that activates Claude on natural-language requests like \"share this markdown\" or \"give me a link for this doc\". Once installed, Claude can call 15 mdshare tools to upload, read, edit, comment on, and version markdown documents.",
+  },
+  {
+    q: "Does the plugin need my admin URL or any account setup?",
+    a: "No. mdshare has no accounts. The plugin creates a local credential store on your machine for documents you upload through it, so the admin key never appears in the Claude conversation. No login, no API keys to configure.",
+  },
+  {
+    q: "How do I update the mdshare plugin?",
+    a: "The MCP server is published to npm and the plugin installs it via <code>npx -y mdshare-mcp</code>, so you get the latest published version automatically each time the plugin starts. Plugin metadata (skill instructions, manifest) updates when Claude Code refreshes the marketplace, typically on session start.",
+  },
+  {
+    q: "Can I use the plugin and a manual MCP config at the same time?",
+    a: "You can, but you don't need to. The plugin includes the same MCP server you'd configure manually. If you have both, you may end up with two registrations of the same MCP server in Claude Code — remove the manual one with <code>claude mcp remove mdshare</code>.",
+  },
+  {
+    q: "What permissions does the plugin require?",
+    a: "Network access to mdshare.live (for uploading and managing documents), and read access to local files when you ask Claude to share a specific file by path. The plugin does not access user data, environment variables, or other files unless the <code>file_path</code> argument is explicitly passed by the user.",
+  },
+  {
+    q: "How do I uninstall the plugin?",
+    a: "Run <code>/plugin uninstall mdshare@urbanmorph</code> in any Claude Code session. This removes the plugin and its MCP server from Claude's loaded toolset. To also clear the local credential store, delete <code>~/.mdshare-mcp/documents.json</code>.",
+  },
+];
 ---
 
 <Layout title={title} description={description} canonical="https://mdshare.live/install-mdshare-plugin">
-  <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+  <script type="application/ld+json" set:html={JSON.stringify(faqJsonLd(faqs))} />
 
   <div class="min-h-screen bg-neutral-950">
     <header class="border-b border-neutral-800 px-4 sm:px-8 py-4">
@@ -175,52 +148,12 @@ const faqSchema = {
         <hr />
 
         <h2 id="faq">FAQ</h2>
-
-        <h3>What does the mdshare plugin install?</h3>
-        <p>
-          The plugin bundles the <code>mdshare-mcp</code> server (npm package) plus a single skill
-          (<code>mdshare-tools</code>) that activates Claude on natural-language requests like
-          "share this markdown" or "give me a link for this doc". Once installed, Claude can call
-          14 mdshare tools to upload, read, edit, comment on, and version markdown documents.
-        </p>
-
-        <h3>Does the plugin need my admin URL or any account setup?</h3>
-        <p>
-          No. mdshare has no accounts. The plugin creates a local credential store on your machine
-          for documents you upload through it, so the admin key never appears in the Claude
-          conversation. No login, no API keys to configure.
-        </p>
-
-        <h3>How do I update the mdshare plugin?</h3>
-        <p>
-          The MCP server is published to npm and the plugin installs it via
-          <code>npx -y mdshare-mcp</code>, so you get the latest published version automatically
-          each time the plugin starts. Plugin metadata (skill instructions, manifest) updates
-          when Claude Code refreshes the marketplace, typically on session start.
-        </p>
-
-        <h3>Can I use the plugin and a manual MCP config at the same time?</h3>
-        <p>
-          You can, but you don't need to. The plugin includes the same MCP server you'd configure
-          manually. If you have both, you may end up with two registrations of the same MCP
-          server in Claude Code — remove the manual one with
-          <code>claude mcp remove mdshare</code>.
-        </p>
-
-        <h3>What permissions does the plugin require?</h3>
-        <p>
-          Network access to mdshare.live (for uploading and managing documents), and read access
-          to local files when you ask Claude to share a specific file by path. The plugin does
-          not access user data, environment variables, or other files unless the
-          <code>file_path</code> argument is explicitly passed by the user.
-        </p>
-
-        <h3>How do I uninstall the plugin?</h3>
-        <p>
-          Run <code>/plugin uninstall mdshare@urbanmorph</code> in any Claude Code session.
-          This removes the plugin and its MCP server from Claude's loaded toolset. To also
-          clear the local credential store, delete <code>~/.mdshare-mcp/documents.json</code>.
-        </p>
+        {faqs.map((f) => (
+          <Fragment>
+            <h3>{f.q}</h3>
+            <p set:html={f.a} />
+          </Fragment>
+        ))}
 
         <hr />
 
