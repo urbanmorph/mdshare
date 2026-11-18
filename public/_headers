@@ -12,3 +12,9 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self' data:; connect-src 'self' wss: https:; frame-ancestors 'none'
+
+# Cloudflare has no MIME type for .vsix and would send an empty Content-Type.
+# application/vsix is what the VS Code Marketplace serves.
+/mdshare-vscode.vsix
+  Content-Type: application/vsix
+  Content-Disposition: attachment; filename="mdshare-vscode.vsix"
