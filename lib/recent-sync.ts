@@ -7,11 +7,12 @@ import {
   type KeyringServer,
 } from "./keyring.ts";
 import { createPasskeyPrf, passkeyPrf, recoverSecret, storeWrappedSecret, type PasskeyHandle } from "./passkey.ts";
-import { capRecent, readRecentDocs, writeRecentDocs, type RecentDoc } from "./recent-docs.ts";
+import { capRecent, readRecentDocs, safeStore, writeRecentDocs, type RecentDoc, type RecentStore } from "./recent-docs.ts";
+import { safeGet } from "./storage.ts";
 
 const STATE_KEY = "mdshare_keyring";
 
-export interface SyncState {
+interface SyncState {
   secret: string;
   synced_at?: string;
   passkey?: PasskeyHandle;
@@ -38,9 +39,9 @@ const codec = {
   merge: mergeRecent,
 };
 
-export interface RecentSyncDeps {
+interface RecentSyncDeps {
   api: KeyringServer;
-  storage: Storage;
+  storage: RecentStore;
   /** The passkey's PRF bytes: a new passkey, or an existing one (shows the OS sheet). */
   passkey: { create(): Promise<Uint8Array>; get(): Promise<Uint8Array> };
 }
@@ -48,7 +49,8 @@ export interface RecentSyncDeps {
 export function createRecentSync({ api, storage, passkey }: RecentSyncDeps) {
   const state = (): SyncState | null => {
     try {
-      return JSON.parse(storage.getItem(STATE_KEY) || "null") as SyncState | null;
+      const s = JSON.parse(storage.getItem(STATE_KEY) || "null") as SyncState | null;
+      return typeof s?.secret === "string" ? s : null;
     } catch {
       return null;
     }
@@ -120,26 +122,20 @@ export function createRecentSync({ api, storage, passkey }: RecentSyncDeps) {
   };
 }
 
-export type RecentSync = ReturnType<typeof createRecentSync>;
-
 // ---- In the browser ----------------------------------------------------------
 
-/** The browser's sync: mdshare's own keyring API, localStorage, real passkeys. */
-export function browserRecentSync(): RecentSync {
+/** The browser's sync: mdshare's own keyring API, localStorage (never throwing), real passkeys. */
+export function browserRecentSync() {
   return createRecentSync({
     api: keyringHttp("/api"),
-    storage: localStorage,
+    storage: safeStore,
     passkey: { create: createPasskeyPrf, get: passkeyPrf },
   });
 }
 
 /** After a visit is saved: sync it in the background if sync is on (failures wait for the next one). */
 export function syncRecentSoon(): void {
-  try {
-    if (!localStorage.getItem(STATE_KEY)) return;
-  } catch {
-    return;
-  }
+  if (!safeGet(STATE_KEY)) return;
   browserRecentSync().syncNow().catch(() => {});
 }
 
