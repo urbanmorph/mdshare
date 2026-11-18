@@ -107,6 +107,7 @@ Optional: add \`"expires_at": "2026-05-01T00:00:00Z"\` to set an expiry date.
 | \`PUT\` | \`/api/d/:id?key=KEY\` | Edit/Admin | Update document (full rewrite) |
 | \`PATCH\` | \`/api/d/:id?key=KEY\` | Edit/Admin | Patch document (find/replace). Body: \`{operations: [{find, replace, replace_all?}], author?}\` |
 | \`DELETE\` | \`/api/d/:id?key=KEY\` | Admin | Delete document |
+| \`PUT\` | \`/api/d/:id/expiry?key=KEY\` | Admin | Change when the document is deleted. Body: \`{expires_at}\` (ISO 8601, in the future, at most 1 year from now) |
 
 ### Links (admin only)
 
@@ -160,9 +161,18 @@ Rate-limited responses return \`429\` with a \`Retry-After\` header.
 ## Document Expiry
 
 - Documents expire **90 days** after creation by default
+- An admin can move the expiry to any future date up to 1 year from now with \`PUT /api/d/:id/expiry\`
 - Expired documents return \`410 Gone\`
 - Share links may have their own expiry (set via \`expires_at\` when creating a link)
 - The \`POST /api/documents\` response includes \`expires_at\` with the expiry date
+
+---
+
+## MCP server and command line
+
+- **npm package:** \`npx mdshare-mcp\` runs the MCP server over stdio for Claude, ChatGPT/Codex, Gemini CLI, Cursor and Windsurf. It has 15 tools for uploading, editing, links, comments, versions and expiry. Admin keys stay on your machine.
+- **Command line:** the same package. For example, \`npx mdshare-mcp upload notes.md\` prints a share link; \`npx mdshare-mcp --help\` lists every command.
+- **Hosted, read only:** \`https://mdshare.live/mcp\` (Streamable HTTP, nothing to install). Pass a share link to \`read_document\`, \`list_comments\` or \`get_versions\`. It refuses admin links and stores or logs no keys.
 
 ---
 

@@ -55,7 +55,7 @@ Each document gets links at four permission levels (admin, edit, comment, view).
 - **Link management:** revoke links instantly, set optional expiry, up to 50 links per document.
 - **Version history:** see who edited and when.
 - **Recent documents sync (optional):** an encrypted copy of your recent-documents list, so it follows you across devices. It is encrypted in your browser; the server cannot read it.
-- **REST API and MCP server:** for scripts and for Claude, ChatGPT/Codex, Gemini CLI, Cursor and Windsurf.
+- **REST API, MCP server and command line:** for scripts and for Claude, ChatGPT/Codex, Gemini CLI, Cursor and Windsurf, plus a hosted read-only MCP endpoint.
 - **Plugins:** Claude Code, Cursor, VS Code and Obsidian.
 
 ## Quick start
@@ -108,6 +108,20 @@ Add it to your client's MCP config:
 
 Then ask, for example, *"upload my-notes.md to mdshare and give me a share link"*. The server reads files from disk by path, so large documents do not pass through the conversation. Full setup: [mdshare.live/share-markdown-with-ai](https://mdshare.live/share-markdown-with-ai). Package docs: [mcp/README.md](mcp/README.md).
 
+### Command line
+
+The same package is a command line. Run it with a command and it shares files from a terminal or script; with no arguments (how MCP clients start it) it is the MCP server.
+
+```bash
+npx mdshare-mcp upload notes.md            # prints a share link
+npx mdshare-mcp update <doc-id> notes.md   # refuses if someone edited it since
+npx mdshare-mcp --help                     # every command
+```
+
+### Hosted, read only
+
+`https://mdshare.live/mcp` is an MCP server over Streamable HTTP, with nothing to install. Give it a share link and it can `read_document`, `list_comments` or `get_versions`. It refuses admin links and stores or logs no keys. To upload or edit, use the npm package.
+
 No MCP client? Point any chatbot that can fetch URLs at the API:
 
 ```text
@@ -117,7 +131,7 @@ then upload this markdown and give me a share link.
 
 ## MCP tools
 
-From [`mcp/index.js`](mcp/index.js) (v1.5.0):
+From [`mcp/src/core.js`](mcp/src/core.js) (v1.6.0):
 
 | Tool | What it does |
 |------|--------------|
