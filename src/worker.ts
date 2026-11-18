@@ -4,7 +4,7 @@
 import type { SSRManifest } from "astro";
 import { App } from "astro/app";
 import { handle } from "@astrojs/cloudflare/handler";
-import { tokenPrefix, verifyToken } from "../lib/tokens";
+import { resolveAccess, isExpired } from "../lib/permissions";
 import { runCleanup } from "../lib/cleanup";
 
 type IncomingRequest = Parameters<ExportedHandlerFetchHandler>[0];
@@ -21,40 +21,6 @@ interface Env {
   DOCUMENT_WS: DurableObjectNamespace;
   ASSETS: Fetcher;
   [key: string]: unknown;
-}
-
-/**
- * Resolve a token directly against D1 (bypasses Astro routing).
- */
-async function resolveTokenDirect(
-  db: D1Database,
-  token: string
-): Promise<{ permission: string; documentId: string } | null> {
-  const prefix = tokenPrefix(token);
-  const rows = await db
-    .prepare(
-      `SELECT document_id, token_hash, permission, is_active, expires_at
-       FROM links WHERE token_prefix = ?`
-    )
-    .bind(prefix)
-    .all<{
-      document_id: string;
-      token_hash: string;
-      permission: string;
-      is_active: number;
-      expires_at: string | null;
-    }>();
-
-  if (!rows.results?.length) return null;
-
-  for (const row of rows.results) {
-    if (!row.is_active) continue;
-    if (row.expires_at && new Date(row.expires_at) < new Date()) continue;
-    if (await verifyToken(token, row.token_hash)) {
-      return { permission: row.permission, documentId: row.document_id };
-    }
-  }
-  return null;
 }
 
 export function createExports(manifest: SSRManifest) {
@@ -93,8 +59,8 @@ export function createExports(manifest: SSRManifest) {
               return Response.json({ error: "Not found" }, { status: 404 });
             }
 
-            const resolved = await resolveTokenDirect(env.DB, key);
-            if (!resolved || resolved.documentId !== id) {
+            const resolved = await resolveAccess(env.DB, key, id);
+            if (!resolved || isExpired(resolved.docExpiresAt)) {
               return Response.json({ error: "Not found" }, { status: 404 });
             }
 
@@ -108,10 +74,7 @@ export function createExports(manifest: SSRManifest) {
 
             const doId = doBinding.idFromName(id);
             const stub = doBinding.get(doId);
-            const doUrl = new URL(request.url);
-            doUrl.searchParams.set("permission", resolved.permission);
-
-            return await stub.fetch(doUrl.toString(), {
+            return await stub.fetch(request.url, {
               headers: request.headers,
             });
           } catch (err) {
@@ -119,7 +82,7 @@ export function createExports(manifest: SSRManifest) {
             // Cloudflare's maintenance): the browser reconnects, so ask it to
             if (isSessionGone(err)) {
               console.warn("WS upgrade: live session restarting, client will retry", {
-                path: url.pathname,
+                url: logUrl(request.url),
                 colo: (request as IncomingRequest).cf?.colo,
                 error: err instanceof Error ? err.message : String(err),
               });
@@ -130,7 +93,6 @@ export function createExports(manifest: SSRManifest) {
             }
             console.error("WS upgrade failed", {
               url: logUrl(request.url),
-              path: url.pathname,
               colo: (request as IncomingRequest).cf?.colo,
               error:
                 err instanceof Error
