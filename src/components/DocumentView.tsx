@@ -462,7 +462,7 @@ export function DocumentView({
           />
           <a
             href="/about"
-            className="p-2.5 rounded-lg text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-colors touch-manipulation"
+            className="p-2.5 rounded-lg text-neutral-400 hover:text-neutral-300 hover:bg-neutral-800 transition-colors touch-manipulation"
             title="About mdshare"
             aria-label="About mdshare"
           >
@@ -535,7 +535,7 @@ export function DocumentView({
 
       {/* Read-only bar */}
       {!editable && (
-        <div className="flex items-center justify-between px-3 sm:px-5 py-2 bg-neutral-950 border-b border-neutral-800 text-xs text-neutral-500">
+        <div className="flex items-center justify-between px-3 sm:px-5 py-2 bg-neutral-950 border-b border-neutral-800 text-xs text-neutral-400">
           <span>
             {permission === "comment"
               ? "Read-only · Select text then add a comment"
@@ -599,7 +599,7 @@ export function DocumentView({
               </span>
               {wsStatus === "live" ? (
                 <span
-                  className="hidden sm:flex items-center gap-1 text-neutral-500"
+                  className="hidden sm:flex items-center gap-1 text-neutral-400"
                   title="Live — receiving updates in real time"
                 >
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400" />
@@ -607,7 +607,7 @@ export function DocumentView({
                 </span>
               ) : wsStatus === "connecting" ? (
                 <span
-                  className="hidden sm:flex items-center gap-1 text-neutral-500"
+                  className="hidden sm:flex items-center gap-1 text-neutral-400"
                   title="Connecting to live updates…"
                 >
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-neutral-500 animate-pulse" />
@@ -623,7 +623,7 @@ export function DocumentView({
                 </span>
               )}
             </span>
-            <span className="hidden sm:inline text-neutral-500">
+            <span className="hidden sm:inline text-neutral-400">
               {doc.content.split(/\s+/).filter(Boolean).length} words
             </span>
             <DisplayNameEditor name={displayName} onChangeName={setDisplayName} />
@@ -653,11 +653,12 @@ export function DocumentView({
         >
           {/* Panel header with close button */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 lg:hidden">
-            <h3 className="text-sm font-semibold text-neutral-300">
+            <h2 className="text-sm font-semibold text-neutral-300">
               {openPanel === "comments" ? "Comments" : "Share Links"}
-            </h3>
+            </h2>
             <button
               onClick={() => setOpenPanel(null)}
+              aria-label="Close panel"
               className="p-2.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 transition-colors touch-manipulation"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -197,12 +197,12 @@ export default function Home() {
               </div>
             </div>
 
-            <p className="text-[11px] text-neutral-600 text-center">
+            <p className="text-[11px] text-neutral-400 text-center">
               Also available any time from the Share links panel inside your document.
             </p>
 
             {result.expires_at && (
-              <p className="text-[11px] text-neutral-600 text-center">
+              <p className="text-[11px] text-neutral-400 text-center">
                 Document expires {new Date(result.expires_at).toLocaleDateString()}
               </p>
             )}
@@ -220,7 +220,7 @@ export default function Home() {
               setResult(null);
               setContent("");
             }}
-            className="block mx-auto text-sm text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="block mx-auto text-sm text-neutral-400 hover:text-neutral-300 transition-colors"
           >
             Create another
           </button>
@@ -339,7 +339,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="text-center text-xs text-neutral-600">
+        <div className="text-center text-xs text-neutral-400">
           or paste your markdown below
         </div>
 
@@ -367,7 +367,7 @@ export default function Home() {
           {loading ? <Spinner context="upload" /> : "Create & Get Share Links"}
         </button>
 
-        <div className="flex items-center gap-3 text-[11px] text-neutral-600">
+        <div className="flex items-center gap-3 text-[11px] text-neutral-400">
           <div className="flex-1 h-px bg-neutral-900" />
           <span>or</span>
           <div className="flex-1 h-px bg-neutral-900" />
@@ -381,13 +381,13 @@ export default function Home() {
           Start with a blank page →
         </button>
 
-        <p className="text-center text-[11px] text-neutral-600 pt-2">
-          <a href="/privacy" className="hover:text-neutral-400 transition-colors">Privacy</a>
+        <p className="text-center text-[11px] text-neutral-400 pt-2">
+          <a href="/privacy" className="hover:text-neutral-300 transition-colors">Privacy</a>
         </p>
 
         {recentDocs.length > 0 && (
           <div className="mt-4 pt-4 border-t border-neutral-900">
-            <p className="text-xs text-neutral-600 mb-2">Recent documents</p>
+            <p className="text-xs text-neutral-400 mb-2">Recent documents</p>
             <div className="space-y-1">
               {(showAllRecent ? recentDocs : recentDocs.slice(0, 5)).map((doc) => (
                 <a
@@ -405,7 +405,7 @@ export default function Home() {
                       ? "bg-blue-900/50 text-blue-300"
                       : doc.permission === "comment"
                       ? "bg-amber-900/50 text-amber-300"
-                      : "bg-neutral-800 text-neutral-500"
+                      : "bg-neutral-800 text-neutral-400"
                   }`}>
                     {doc.permission}
                   </span>
@@ -416,7 +416,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setShowAllRecent((v) => !v)}
-                className="mt-2 text-xs text-neutral-600 hover:text-neutral-400 transition-colors"
+                className="mt-2 text-xs text-neutral-400 hover:text-neutral-300 transition-colors"
               >
                 {showAllRecent ? "Show fewer" : `Show all ${recentDocs.length}`}
               </button>

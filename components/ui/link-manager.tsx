@@ -161,16 +161,16 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
 
   return (
     <div className="w-full bg-neutral-950 p-4 overflow-y-auto h-full">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-4">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-4">
         Share Links
-      </h3>
+      </h2>
 
       {/* Document expiry — admin-only; future dates only, up to 1 year out. */}
       <div className="bg-neutral-900 rounded-lg p-3 mb-4">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-2">
           Document expiry
-        </h4>
-        <p className="text-[11px] text-neutral-500 mb-2">
+        </h3>
+        <p className="text-[11px] text-neutral-400 mb-2">
           {docExpiry
             ? `Auto-deletes ${new Date(docExpiry).toLocaleString()}`
             : "No expiry set"}
@@ -191,7 +191,7 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
         >
           {savingExpiry ? "Saving…" : expirySaved ? "Updated ✓" : "Update expiry"}
         </button>
-        <p className="text-[11px] text-neutral-600 mt-1.5">
+        <p className="text-[11px] text-neutral-400 mt-1.5">
           Future dates only (up to 1 year). Set a nearer date to delete sooner.
         </p>
         {expiryError && (
@@ -246,7 +246,7 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
               )}
 
               <div className="flex items-center justify-between mt-1.5 flex-wrap gap-1">
-                <span className="text-[11px] text-neutral-500">
+                <span className="text-[11px] text-neutral-400">
                   {new Date(link.created_at).toLocaleDateString()}
                 </span>
                 <div className="flex gap-1.5">
@@ -270,7 +270,7 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
           );
         })}
         {loaded && links.length === 0 && (
-          <p className="text-xs text-neutral-600 text-center py-2">
+          <p className="text-xs text-neutral-400 text-center py-2">
             Generate links and collaborate with others by sharing it
           </p>
         )}
@@ -278,9 +278,9 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
 
       {/* Create new link */}
       <div className="border-t border-neutral-800 pt-4">
-        <h4 className="text-xs font-semibold text-neutral-400 mb-2">
+        <h3 className="text-xs font-semibold text-neutral-400 mb-2">
           Generate New Link
-        </h4>
+        </h3>
         <select
           value={newPerm}
           onChange={(e) =>
@@ -299,7 +299,7 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
           className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-300 placeholder-neutral-600 mb-2 touch-manipulation"
         />
         <label className="block mb-2">
-          <span className="text-[11px] text-neutral-600 mb-1 block">Link expires (default: 90 days with document)</span>
+          <span className="text-[11px] text-neutral-400 mb-1 block">Link expires (default: 90 days with document)</span>
           <input
             type="datetime-local"
             value={newExpiry}
@@ -317,16 +317,16 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
         {error && (
           <p className="text-[11px] text-red-400 mt-2 text-center">{error}</p>
         )}
-        <p className="text-[11px] text-neutral-600 mt-2 text-center">
+        <p className="text-[11px] text-neutral-400 mt-2 text-center">
           Auto-copied to clipboard on creation
         </p>
       </div>
 
       {adminKey && (
         <div className="border-t border-neutral-800 pt-4 mt-4">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-2">
             For Developers &amp; AI Agents
-          </h4>
+          </h3>
           <label className="block text-xs text-neutral-400 mb-1.5">Admin key</label>
           <div className="flex gap-1.5">
             <input
@@ -358,7 +358,7 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
               {adminKeyCopied ? "Copied!" : "Copy"}
             </button>
           </div>
-          <p className="text-[11px] text-neutral-600 leading-relaxed mt-2">
+          <p className="text-[11px] text-neutral-400 leading-relaxed mt-2">
             Use this in Claude, Cursor, or the mdshare MCP server to edit this document from AI tools.{" "}
             <span className="text-amber-500/80">Full control</span> — anyone with this key can edit or delete the document. Don&apos;t paste it into public chats.{" "}
             <a

@@ -70,7 +70,7 @@ export function RecentSync({ hasDocs }: { hasDocs: boolean }) {
         type="button"
         id="recent-sync-open"
         onClick={() => setOpen(true)}
-        className="mt-2 text-xs text-neutral-600 hover:text-neutral-400 transition-colors"
+        className="mt-2 text-xs text-neutral-400 hover:text-neutral-300 transition-colors"
       >
         {st ? "Synced across your devices" : hasDocs ? "Keep these on all your devices" : "Bring your documents from another device"}
       </button>
@@ -85,7 +85,7 @@ export function RecentSync({ hasDocs }: { hasDocs: boolean }) {
     <div id="recent-sync" className="mt-3 p-3 rounded-lg bg-neutral-900/50 space-y-2 text-xs text-neutral-400">
       {!st ? (
         <>
-          <p className="text-sm text-neutral-200">Keep these on all your devices <span className="text-neutral-500">(optional)</span></p>
+          <p className="text-sm text-neutral-200">Keep these on all your devices <span className="text-neutral-400">(optional)</span></p>
           <p>{NOTICE}</p>
           <button type="button" id="recent-sync-on" disabled={busy} onClick={run(() => sync.turnOn())}
             className={`${button} bg-white text-black hover:bg-neutral-200`}>
@@ -103,7 +103,7 @@ export function RecentSync({ hasDocs }: { hasDocs: boolean }) {
         </>
       ) : (
         <>
-          <p className="text-sm text-neutral-200">Sync is on <span className="text-neutral-500">(last synced {when})</span></p>
+          <p className="text-sm text-neutral-200">Sync is on <span className="text-neutral-400">(last synced {when})</span></p>
           <label htmlFor="recent-sync-link" className="block">
             Your sync link (keep it private). Open it on your other device to bring this list there. Anyone with it can open your documents as you.
           </label>
