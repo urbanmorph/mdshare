@@ -21,21 +21,21 @@
 :root {
   --background: #0a0a0a;
   --foreground: #ededed;
-  --font-geist-sans: "Geist";
-  --font-geist-mono: "Geist Mono";
 }
 
+/* The one place the UI font stack is set. Non-Latin document content falls back to the
+   Noto families or the reader's system fonts; no third-party web font is requested. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Geist", "Noto Sans", "Noto Naskh Arabic", "Noto Sans Hebrew", "Noto Sans SC", "Noto Sans JP", "Noto Sans KR", "Noto Sans Devanagari", "Noto Sans Thai", system-ui, sans-serif;
+  --font-mono: "Geist Mono";
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* Keyboard-only focus ring.
@@ -69,6 +69,19 @@ select:focus-visible {
 .prose-docs th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid #333; color: #bbb; font-weight: 600; }
 .prose-docs td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #1a1a1a; color: #bbb; }
 .prose-docs strong { color: #eee; }
+
+/* /docs: the API reference rendered from markdown (lib/docs-content.ts). Scoped to
+   .docs-md so the lists on other .prose-docs pages keep their Tailwind classes. */
+.docs-md h1 + p { color: #e0e0e0; font-size: 1.05rem; }
+.docs-md h4 { font-weight: 600; color: #ddd; margin-top: 1.25rem; margin-bottom: 0.5rem; }
+.docs-md ul, .docs-md ol { padding-left: 1.25rem; margin-bottom: 0.75rem; font-size: 0.875rem; color: #bbb; }
+.docs-md ul { list-style: disc; }
+.docs-md ol { list-style: decimal; }
+.docs-md li { margin-bottom: 0.25rem; }
+.docs-md a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+.docs-md a:hover { color: #a5b4fc; }
+.docs-md blockquote { background: rgba(30, 27, 75, 0.3); border: 1px solid rgba(49, 46, 129, 0.6); border-radius: 4px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+.docs-md blockquote p { color: #a5b4fc; font-size: 0.875rem; margin: 0; }
 
 /* Thin scrollbar for toolbar horizontal scroll */
 .scrollbar-thin {
@@ -178,18 +191,19 @@ select:focus-visible {
 .prose-viewer input[type="checkbox"] { margin-right: 0.5rem; }
 .prose-viewer del { color: #888; }
 
-/* Syntax highlighting (highlight.js dark theme) */
+/* Syntax highlighting (highlight.js dark theme). Comments use #78909c, not the theme's
+   #546e7a, to reach 4.5:1 contrast on #111. */
 .hljs { background: #111; color: #e0e0e0; }
 .hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-name { color: #c792ea; }
 .hljs-string, .hljs-attr { color: #c3e88d; }
 .hljs-number, .hljs-literal { color: #f78c6c; }
-.hljs-comment, .hljs-quote { color: #546e7a; font-style: italic; }
+.hljs-comment, .hljs-quote { color: #78909c; font-style: italic; }
 .hljs-function .hljs-title, .hljs-title.function_ { color: #82aaff; }
 .hljs-type, .hljs-class .hljs-title { color: #ffcb6b; }
 .hljs-variable, .hljs-template-variable { color: #f07178; }
 .hljs-params { color: #89ddff; }
 .hljs-regexp { color: #89ddff; }
-.hljs-meta { color: #546e7a; }
+.hljs-meta { color: #78909c; }
 .hljs-tag { color: #89ddff; }
 .hljs-attribute { color: #c792ea; }
 .hljs-symbol, .hljs-bullet { color: #c3e88d; }
