@@ -4,6 +4,8 @@ export const DOCS_MARKDOWN = `# mdshare API
 
 Zero-login markdown sharing. Upload, get links, collaborate. No accounts needed.
 
+Please send a \`User-Agent\` that names your app (for example \`my-app/1.0\`). We read it only to tell how a document was made (the website, the API, our MCP server or command line, the VS Code or Obsidian plugin), and keep only that category with the document. We don't store the header, and we don't track who you are.
+
 ---
 
 ## Quick Start
@@ -172,7 +174,7 @@ Rate-limited responses return \`429\` with a \`Retry-After\` header.
 
 - **npm package:** \`npx mdshare-mcp\` runs the MCP server over stdio for Claude, ChatGPT/Codex, Gemini CLI, Cursor and Windsurf. It has 15 tools for uploading, editing, links, comments, versions and expiry. Admin keys stay on your machine.
 - **Command line:** the same package. For example, \`npx mdshare-mcp upload notes.md\` prints a share link; \`npx mdshare-mcp --help\` lists every command.
-- **Hosted, read only:** \`https://mdshare.live/mcp\` (Streamable HTTP, nothing to install). Pass a share link to \`read_document\`, \`list_comments\` or \`get_versions\`. It refuses admin links and stores or logs no keys.
+- **Hosted, read only:** \`https://mdshare.live/mcp\` (Streamable HTTP, nothing to install). Pass a share link to \`read_document\`, \`list_comments\` or \`get_versions\`. It refuses admin links and stores or logs no keys. The hosted MCP server keeps nothing about its callers.
 
 ---
 

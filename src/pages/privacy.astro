@@ -54,7 +54,8 @@ const schema = {
           <li><strong>Markdown content you upload</strong> — the document body, stored on Cloudflare D1.</li>
           <li><strong>Comments anyone posts</strong> on a document, with the display name they choose. Comments default to "Anonymous" if no name is provided.</li>
           <li><strong>IP address and user agent</strong>, transiently logged via Cloudflare for abuse detection. Subject to Cloudflare's standard retention policy.</li>
-          <li><strong>Integration name and version</strong> — our official integrations (VS Code extension, Obsidian plugin, MCP server, etc.) send a <code>User-Agent: mdshare-&lt;integration&gt;/&lt;version&gt;</code> header on upload requests so we can attribute traffic by integration. Aggregate counts only — no personal identifiers.</li>
+          <li><strong>How a document was made</strong> — each document keeps only the category it was made through: upload, blank, paste, API, MCP server, command line, VS Code extension or Obsidian plugin. We work it out from the request's <code>User-Agent</code>, <code>X-Source</code> and <code>Origin</code> headers; the headers themselves, and any version they carry, are not stored. Our official integrations send <code>User-Agent: mdshare-&lt;integration&gt;/&lt;version&gt;</code>.</li>
+          <li><strong>A salted hash of your IP address, for rate limits</strong> — To enforce rate limits we keep a salted hash of your IP address, never the address itself, until a daily clean-up after the limit&rsquo;s window ends (about two days at most), then delete it.</li>
           <li><strong>Aggregate page-view counts</strong> via Cloudflare Web Analytics — no personal identifiers, no cross-site tracking, no cookies.</li>
           <li><strong>An encrypted copy of your recent-documents list, only if you turn on sync</strong> — see <a href="#sync">Recent documents sync</a>.</li>
         </ul>
@@ -76,7 +77,7 @@ const schema = {
         <p>
           AI tools can also read a document through our hosted MCP server at
           <code>mdshare.live/mcp</code> when someone gives it a share link. It only reads, refuses
-          admin links, and never stores or logs the link's key.
+          admin links, and never stores or logs the link's key. The hosted MCP server keeps nothing about its callers.
         </p>
 
         <h2 id="lifetime">Document lifetime</h2>

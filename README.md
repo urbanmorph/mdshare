@@ -120,7 +120,7 @@ npx mdshare-mcp --help                     # every command
 
 ### Hosted, read only
 
-`https://mdshare.live/mcp` is an MCP server over Streamable HTTP, with nothing to install. Give it a share link and it can `read_document`, `list_comments` or `get_versions`. It refuses admin links and stores or logs no keys. To upload or edit, use the npm package.
+`https://mdshare.live/mcp` is an MCP server over Streamable HTTP, with nothing to install. Give it a share link and it can `read_document`, `list_comments` or `get_versions`. It refuses admin links and stores or logs no keys. The hosted MCP server keeps nothing about its callers. To upload or edit, use the npm package.
 
 No MCP client? Point any chatbot that can fetch URLs at the API:
 
@@ -182,6 +182,8 @@ Listed in the [Obsidian Community Plugins directory](https://community.obsidian.
 
 Base URL: `https://mdshare.live`. Full reference at [mdshare.live/docs](https://mdshare.live/docs) (plain text for LLMs at [/docs/raw](https://mdshare.live/docs/raw)).
 
+Please send a `User-Agent` that names your app (for example `my-app/1.0`). We read it only to tell how a document was made (the website, the API, our MCP server or command line, the VS Code or Obsidian plugin), and keep only that category with the document. We don't store the header, and we don't track who you are.
+
 | Action | Request |
 |--------|---------|
 | Upload | `POST /api/documents` (`Content-Type: text/markdown`, raw markdown body) |
@@ -202,6 +204,8 @@ Limits: 10 MB per document; 10 creates per minute and 50 per day per IP; 30 upda
 - **Content is sanitized** on the server before it is stored.
 - **Documents expire** 90 days after creation by default. The admin can move the expiry to any future date up to a year out. A daily job deletes expired documents with their comments, versions and links.
 - **What is collected:** document content, comments with the display name the commenter chooses, transient IP and user-agent logs at Cloudflare for abuse detection, and aggregate page-view counts through Cloudflare Web Analytics (no cookies). No email addresses, trackers or profiles.
+- **How a document was made:** each document keeps only the category it was made through (upload, blank, paste, API, MCP, command line, VS Code or Obsidian), worked out from the request's `User-Agent`, `X-Source` and `Origin` headers. The headers themselves, and any version in them, are not stored.
+- **Rate limits:** To enforce rate limits we keep a salted hash of your IP address, never the address itself, until a daily clean-up after the limit's window ends (about two days at most), then delete it.
 
 Full policy, including GDPR and DPDPA rights: [mdshare.live/privacy](https://mdshare.live/privacy).
 
