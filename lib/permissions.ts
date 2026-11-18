@@ -34,25 +34,77 @@ async function firstValidLink<T extends LinkCandidate>(token: string, rows: T[] 
   return null;
 }
 
+export interface ResolvedAccess extends ResolvedPermission {
+  /** the document's own expiry (not the link's) */
+  docExpiresAt: string | null;
+}
+
 /**
- * Resolve a token to its permission level by looking it up in D1.
- * Returns null if the token is invalid, inactive, or expired.
+ * Resolve a token to its permission on a document that still exists, in one D1 round trip,
+ * without reading the content. With `id`, only a link of that document; with null, whichever
+ * document the token opens. Null if the token is unknown, inactive or expired, or the
+ * document is gone. The document's own expiry is the caller's to check (isExpired).
  */
-export async function resolveToken(
+export async function resolveAccess(
   db: D1Database,
-  token: string
-): Promise<ResolvedPermission | null> {
+  token: string,
+  id: string | null
+): Promise<ResolvedAccess | null> {
   const { results } = await db
     .prepare(
-      `SELECT id AS link_id, document_id, token_hash, permission, is_active, expires_at AS link_expires_at
-       FROM links
-       WHERE token_prefix = ?`
+      `SELECT l.id AS link_id, l.document_id, l.token_hash, l.permission, l.is_active,
+              l.expires_at AS link_expires_at, d.expires_at AS doc_expires_at
+       FROM links l JOIN documents d ON d.id = l.document_id
+       WHERE l.token_prefix = ? AND (? IS NULL OR l.document_id = ?)`
     )
-    .bind(tokenPrefix(token))
-    .all<LinkCandidate>();
+    .bind(tokenPrefix(token), id, id)
+    .all<LinkCandidate & { doc_expires_at: string | null }>();
 
   const row = await firstValidLink(token, results);
-  return row && { permission: row.permission, documentId: row.document_id, linkId: row.link_id };
+  return (
+    row && {
+      permission: row.permission,
+      documentId: row.document_id,
+      linkId: row.link_id,
+      docExpiresAt: row.doc_expires_at,
+    }
+  );
+}
+
+/** Deprecated: resolveAccess(db, token, null). Kept until the routes move to lib/authorize.ts. */
+export async function resolveToken(db: D1Database, token: string): Promise<ResolvedPermission | null> {
+  return resolveAccess(db, token, null);
+}
+
+/** Whether a document's expires_at (an ISO string, or null for never) has passed. */
+export function isExpired(expiresAt: string | null | undefined, now = Date.now()): boolean {
+  return !!expiresAt && Date.parse(expiresAt) < now;
+}
+
+/**
+ * One of a document's links, addressed by its id or by its token, whatever its state: revoked
+ * and expired links included, so an admin can re-activate or delete them. Never a link of
+ * another document; a token must match the stored hash, not just the prefix.
+ */
+export async function findLink(
+  db: D1Database,
+  documentId: string,
+  idOrToken: string
+): Promise<{ id: string; permission: Permission } | null> {
+  if (!idOrToken) return null;
+  const { results } = await db
+    .prepare(
+      `SELECT id, permission, token_hash FROM links
+       WHERE document_id = ? AND (id = ? OR token_prefix = ?)`
+    )
+    .bind(documentId, idOrToken, tokenPrefix(idOrToken))
+    .all<{ id: string; permission: Permission; token_hash: string }>();
+  for (const row of results ?? []) {
+    if (row.id === idOrToken || (await verifyToken(idOrToken, row.token_hash))) {
+      return { id: row.id, permission: row.permission };
+    }
+  }
+  return null;
 }
 
 /**
