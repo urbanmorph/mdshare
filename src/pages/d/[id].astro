@@ -2,7 +2,7 @@
 import Layout from "../../layouts/Layout.astro";
 import { DocumentView } from "../../components/DocumentView";
 import { getDB } from "../../../lib/db";
-import { resolveToken } from "../../../lib/permissions";
+import { resolveDocument } from "../../../lib/permissions";
 import { detectScript } from "../../../lib/detect-script";
 import type { DocumentRow } from "../../../lib/db-types";
 import type { Permission } from "../../../lib/tokens";
@@ -19,21 +19,12 @@ let notFound = false;
 if (!key) {
   notFound = true;
 } else {
-  const db = getDB();
-  const resolved = await resolveToken(db, key);
-  if (!resolved || resolved.documentId !== id) {
+  const resolved = await resolveDocument(getDB(), key, id);
+  if (!resolved) {
     notFound = true;
   } else {
     permission = resolved.permission;
-    const row = await db
-      .prepare("SELECT * FROM documents WHERE id = ?")
-      .bind(id)
-      .first<DocumentRow>();
-    if (!row) {
-      notFound = true;
-    } else {
-      doc = row;
-    }
+    doc = resolved.doc;
   }
 }
 
