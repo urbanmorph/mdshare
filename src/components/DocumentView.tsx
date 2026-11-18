@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from "react";
-import { TiptapEditor } from "../../components/editor/tiptap-editor";
 import type { Comment } from "../../components/editor/comment-sidebar";
 import { DownloadButton } from "../../components/ui/download-button";
 import { Spinner } from "../../components/ui/spinner";
 
+// The editor is most of the page's JavaScript; view-only readers never download it.
+const TiptapEditor = lazy(() => import("../../components/editor/tiptap-editor").then(m => ({ default: m.TiptapEditor })));
 const CommentSidebar = lazy(() => import("../../components/editor/comment-sidebar").then(m => ({ default: m.CommentSidebar })));
 const LinkManager = lazy(() => import("../../components/ui/link-manager").then(m => ({ default: m.LinkManager })));
 import { MarkdownViewer } from "../../components/editor/markdown-viewer";
@@ -558,23 +559,26 @@ export function DocumentView({
         {/* Editor — always rendered, flex-1 */}
         <div className={`flex flex-col flex-1 min-h-0 min-w-0 editor-area${lightEditor ? " editor-light" : ""}`}>
           {editable || permission === "comment" ? (
-            <TiptapEditor
-              content={liveContent}
-              contentRevision={contentRevision}
-              onContentApplied={handleContentApplied}
-              editable={editable}
-              onUpdate={editable ? handleUpdate : undefined}
-              commentAnchors={commentAnchors}
-              activeCommentId={activeCommentId}
-              lightMode={lightEditor}
-              onToggleLight={() => setLightEditor((v) => {
-                localStorage.setItem("editorLight", String(!v));
-                return !v;
-              })}
-              isAdmin={permission === "admin"}
-              canComment={canComment}
-              onRequestComment={enableCommentBubble && canComment ? handleRequestComment : undefined}
-            />
+            // The text shows at once in the viewer while the editor loads.
+            <Suspense fallback={<MarkdownViewer content={liveContent} />}>
+              <TiptapEditor
+                content={liveContent}
+                contentRevision={contentRevision}
+                onContentApplied={handleContentApplied}
+                editable={editable}
+                onUpdate={editable ? handleUpdate : undefined}
+                commentAnchors={commentAnchors}
+                activeCommentId={activeCommentId}
+                lightMode={lightEditor}
+                onToggleLight={() => setLightEditor((v) => {
+                  localStorage.setItem("editorLight", String(!v));
+                  return !v;
+                })}
+                isAdmin={permission === "admin"}
+                canComment={canComment}
+                onRequestComment={enableCommentBubble && canComment ? handleRequestComment : undefined}
+              />
+            </Suspense>
           ) : (
             <MarkdownViewer content={liveContent} />
           )}
