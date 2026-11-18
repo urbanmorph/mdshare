@@ -17,6 +17,9 @@ jobs:
 
       - run: npm ci
 
+      # lint failed unnoticed on main for a while (fixed in #52); now it stops a deploy
+      - run: npm run lint
+
       - run: npx astro build
 
       - name: Apply D1 migrations
