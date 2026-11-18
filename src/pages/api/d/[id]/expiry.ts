@@ -1,71 +1,35 @@
 import type { APIRoute } from "astro";
 import { getDB } from "../../../../../lib/db";
-import { resolveToken } from "../../../../../lib/permissions";
+import { authorize } from "../../../../../lib/authorize";
+import { readJson, rateLimit, parseFutureDate } from "../../../../../lib/request";
 
 export const prerender = false;
 
-// A document's expiry can be moved, but only forward in time and within a
-// bounded horizon, so nothing lives forever without a deliberate act. Setting a
-// nearer (still-future) date is the honest "erase sooner" path — the daily cron
-// (or the next authenticated read) deletes the document once the date passes.
-// Requires the admin token; there is intentionally no self-serve hard delete.
+// A document's expiry can be moved, within a bounded horizon, so nothing lives forever without
+// a deliberate act. Setting a nearer (still-future) date is the "erase sooner" path: once the
+// date passes, the document answers 410 and is deleted (at its next request, or by the daily
+// cron). Requires the admin token, as does DELETE /api/d/:id, which erases it at once.
 const MAX_HORIZON_MS = 365 * 24 * 60 * 60 * 1000; // at most 1 year out
 
 export const PUT: APIRoute = async ({ request, params }) => {
+  const limited = rateLimit(request, "expiry", { max: 10, windowSec: 60 });
+  if (limited) return limited;
+
   const id = params.id!;
-  const url = new URL(request.url);
-  const key = url.searchParams.get("key");
-  if (!key) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
   const db = getDB();
-  const resolved = await resolveToken(db, key);
-  if (!resolved || resolved.documentId !== id) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-  if (resolved.permission !== "admin") {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const resolved = await authorize(db, request, id, "admin");
+  if (resolved instanceof Response) return resolved;
 
-  let body: { expires_at?: unknown };
-  try {
-    body = (await request.json()) as { expires_at?: unknown };
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const body = await readJson<{ expires_at?: unknown }>(request);
+  if (body instanceof Response) return body;
 
-  const raw = body.expires_at;
-  if (typeof raw !== "string" || !raw.trim()) {
-    return Response.json({ error: "expires_at (ISO 8601) is required" }, { status: 400 });
-  }
+  const when = parseFutureDate(body.expires_at, { maxAheadMs: MAX_HORIZON_MS });
+  if (when.error !== undefined) return Response.json({ error: when.error }, { status: 400 });
 
-  const when = new Date(raw);
-  if (Number.isNaN(when.getTime())) {
-    return Response.json({ error: "expires_at is not a valid date" }, { status: 400 });
-  }
-
-  const now = Date.now();
-  if (when.getTime() <= now) {
-    return Response.json({ error: "expires_at must be a future date" }, { status: 400 });
-  }
-  if (when.getTime() > now + MAX_HORIZON_MS) {
-    return Response.json(
-      { error: "expires_at cannot be more than 1 year from now" },
-      { status: 400 }
-    );
-  }
-
-  // Store in the same ISO format used at creation.
-  const iso = when.toISOString();
-  const res = await db
-    .prepare("UPDATE documents SET expires_at = ? WHERE id = ?")
-    .bind(iso, id)
-    .run();
-
+  const res = await db.prepare("UPDATE documents SET expires_at = ? WHERE id = ?").bind(when.iso, id).run();
   if (!res.meta?.changes) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  return Response.json({ status: "updated", expires_at: iso });
+  return Response.json({ status: "updated", expires_at: when.iso });
 };

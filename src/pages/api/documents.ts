@@ -3,9 +3,10 @@ import { nanoid } from "nanoid";
 import { getDB, rateLimitSalt } from "../../../lib/db";
 import { generateToken, hashToken, tokenPrefix } from "../../../lib/tokens";
 import { encryptToken } from "../../../lib/token-crypto";
-import { sanitizeMarkdown, contentHash, validateIsText, sanitizeTitle } from "../../../lib/sanitize";
+import { sanitizeMarkdown, contentHash, validateIsText, sanitizeTitle, titleFrom } from "../../../lib/sanitize";
 import { checkRateLimit, checkDurableRateLimit, rateLimitResponse } from "../../../lib/rate-limit";
-import { incrementStat } from "../../../lib/stats";
+import { incrementStatStatement } from "../../../lib/stats";
+import { decodeHeader } from "../../../lib/request";
 import { documentSource } from "../../../lib/document-source";
 
 export const prerender = false;
@@ -37,7 +38,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   let rawContent: string;
-  let title = "Untitled";
+  let fileTitle = "";
 
   const contentType = request.headers.get("content-type") || "";
   const userAgent = request.headers.get("user-agent") || "";
@@ -61,30 +62,11 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     rawContent = new TextDecoder("utf-8").decode(rawBytes);
-    title = file.name.replace(/\.mdx?$/, "") || "Untitled";
+    fileTitle = sanitizeTitle(file.name.replace(/\.mdx?$/, ""));
   } else {
     rawContent = await request.text();
     if (!rawContent.trim()) {
       return Response.json({ error: "Empty content" }, { status: 400 });
-    }
-  }
-
-  const headingMatch = rawContent.match(/^#\s+(.+)$/m);
-  if (headingMatch) {
-    title = headingMatch[1].trim();
-  } else {
-    // Integrations can supply a title hint via X-Title (percent-encoded for
-    // safe transport of unicode). Only used when the body has no H1.
-    const rawTitle = request.headers.get("x-title");
-    if (rawTitle) {
-      let decoded: string;
-      try {
-        decoded = decodeURIComponent(rawTitle);
-      } catch {
-        decoded = rawTitle;
-      }
-      const t = sanitizeTitle(decoded);
-      if (t) title = t;
     }
   }
 
@@ -97,6 +79,11 @@ export const POST: APIRoute = async ({ request }) => {
   }
   const hash = await contentHash(content);
   const sanitizeMs = Date.now() - tSanitize;
+
+  // The title: the sanitized content's H1; else an integration's X-Title hint (percent-encoded
+  // for safe transport of unicode); else the uploaded file's name.
+  const title =
+    titleFrom(content) || sanitizeTitle(decodeHeader(request.headers.get("x-title")) ?? "") || fileTitle || "Untitled";
 
   const docId = nanoid(10);
   const adminToken = generateToken("admin");
@@ -121,8 +108,8 @@ export const POST: APIRoute = async ({ request }) => {
          VALUES (?, ?, ?, ?, 'admin', 'admin', ?)`
       )
       .bind(linkId, docId, adminPrefix, adminTokenHash, adminTokenStored),
+    incrementStatStatement(db, "documents_created"),
   ]);
-  await incrementStat(db, "documents_created");
   const dbMs = Date.now() - tDb;
 
   const baseUrl = new URL(request.url).origin;

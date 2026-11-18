@@ -2,7 +2,7 @@
 import Layout from "../../layouts/Layout.astro";
 import { DocumentView } from "../../components/DocumentView";
 import { getDB } from "../../../lib/db";
-import { resolveDocument } from "../../../lib/permissions";
+import { resolveDocument, isExpired } from "../../../lib/permissions";
 import { detectScript } from "../../../lib/detect-script";
 import type { DocumentRow } from "../../../lib/db-types";
 import type { Permission } from "../../../lib/tokens";
@@ -20,7 +20,8 @@ if (!key) {
   notFound = true;
 } else {
   const resolved = await resolveDocument(getDB(), key, id);
-  if (!resolved) {
+  // past its expiry, a document is gone even before the daily cron deletes it
+  if (!resolved || isExpired(resolved.doc.expires_at)) {
     notFound = true;
   } else {
     permission = resolved.permission;
