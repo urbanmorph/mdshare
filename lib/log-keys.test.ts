@@ -7,9 +7,10 @@ import { readFileSync } from "node:fs";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
-test("the Worker never logs a raw request URL", () => {
+test("the Worker never logs a raw request URL, or a raw path (/api/links/:token carries a token)", () => {
   for (const f of ["src/worker.ts", "worker/document-ws.ts"]) {
     assert.doesNotMatch(read(f), /url:\s*request\.url/, f);
+    assert.doesNotMatch(read(f), /:\s*url\.pathname\s*[,}]/, f);
   }
 });
 

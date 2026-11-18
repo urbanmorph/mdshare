@@ -116,3 +116,12 @@ test("errors read plainly: a cancelled passkey, no connection, or the reason", a
   assert.match(syncErrorText(new Error("anything"), false), /Couldn't reach mdshare/);
   assert.equal(syncErrorText(new Error("sync kept conflicting, try again")), "sync kept conflicting, try again");
 });
+
+test("a junk or half-written sync state reads as sync off, not a crash", () => {
+  const { storage, sync } = device(memoryServer());
+  for (const raw of ["null", '"x"', "{}", '{"secret": 3}', "not json"]) {
+    storage.setItem("mdshare_keyring", raw);
+    assert.equal(sync.state(), null, raw);
+    assert.equal(sync.link("https://mdshare.live"), null, raw);
+  }
+});

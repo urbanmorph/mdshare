@@ -1,48 +1,25 @@
 
+import { downloadMarkdown } from "../../lib/download-markdown";
+
 interface DownloadButtonProps {
-  documentId: string;
-  tokenKey: string;
+  /** The markdown as this tab shows it. */
+  content: string;
   title: string;
 }
 
-export function DownloadButton({
-  documentId,
-  tokenKey,
-  title,
-}: DownloadButtonProps) {
-  const currentUrl = typeof window !== "undefined" ? window.location.href : "";
-
+export function DownloadButton({ content, title }: DownloadButtonProps) {
   const handleShare = async () => {
+    const url = window.location.href;
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: `${title} — mdshare`,
-          text: title,
-          url: currentUrl,
-        });
+        await navigator.share({ title: `${title} — mdshare`, text: title, url });
         return;
       } catch {
         // User dismissed the share sheet; fall through to clipboard copy.
       }
     }
-    // Fallback: copy URL to clipboard
-    navigator.clipboard.writeText(currentUrl);
-  };
-
-  const handleDownload = async () => {
-    const res = await fetch(`/api/d/${documentId}?key=${tokenKey}`, {
-      headers: { Accept: "text/markdown" },
-    });
-    if (!res.ok) return;
-
-    const content = await res.text();
-    const blob = new Blob([content], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${title.replace(/[^a-zA-Z0-9-_]/g, "_")}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // Fallback: copy the URL. Nothing to tell the user if the clipboard is blocked too.
+    navigator.clipboard?.writeText(url).catch(() => {});
   };
 
   return (
@@ -59,7 +36,7 @@ export function DownloadButton({
       </button>
       {/* Desktop: download button only */}
       <button
-        onClick={handleDownload}
+        onClick={() => downloadMarkdown(content, title)}
         className="hidden sm:flex p-2 sm:px-3 sm:py-1.5 bg-green-900/30 hover:bg-green-900/50 text-green-400 border border-green-800 rounded-lg transition-colors touch-manipulation items-center"
         title="Download .md"
       >

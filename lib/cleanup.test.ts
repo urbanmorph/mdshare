@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { DELETE_EXPIRED_DOCUMENTS, runCleanup } from "./cleanup.ts";
+import { DELETE_EXPIRED_DOCUMENTS, runCleanup, MAX_VERSIONS } from "./cleanup.ts";
+import { sqliteD1, addDoc } from "./test-sqlite-d1.ts";
 
 // The daily cron's delete, run on real SQLite (D1 is SQLite). expires_at is stored as
 // JavaScript's ISO string ("2026-10-25T01:31:10.123Z"), but datetime('now') returns
@@ -64,10 +65,12 @@ function captureLogs<T>(fn: () => Promise<T>) {
 }
 
 test("runCleanup: one [cleanup] line saying what each delete removed", async () => {
-  const { db, ran } = fakeD1([41, 14, 2]);
+  const { db, ran } = fakeD1([41, 14, 2, 7]);
   const { lines } = await captureLogs(() => runCleanup(db, Date.parse("2026-11-13T03:00:00Z")));
-  assert.equal(ran.length, 3);
-  assert.deepEqual(lines, [{ level: "warn", msg: "[cleanup] deleted 41 expired documents, 14 stale rate-limit rows, 2 unused keyrings" }]);
+  assert.equal(ran.length, 4);
+  assert.deepEqual(lines, [
+    { level: "warn", msg: "[cleanup] deleted 41 expired documents, 14 stale rate-limit rows, 2 unused keyrings, 7 old versions" },
+  ]);
 });
 
 test("runCleanup: a failure is logged as an error line ops can read, and still fails the run", async () => {
@@ -75,4 +78,27 @@ test("runCleanup: a failure is logged as an error line ops can read, and still f
   const out = (await captureLogs(() => runCleanup(db, Date.now()))) as { e?: Error; lines: { level: string; msg: string }[] };
   assert.ok(out.e, "the run still throws, so Cloudflare counts the exception");
   assert.deepEqual(out.lines, [{ level: "error", msg: "[cleanup] failed: D1_ERROR: database is locked" }]);
+});
+
+// ----- version history is pruned to the newest MAX_VERSIONS per document (the API lists 50) -----
+
+test("runCleanup keeps each document's newest versions and deletes the rest", async () => {
+  const { d, db } = sqliteD1();
+  addDoc(d, "big");
+  addDoc(d, "small");
+  const ins = d.prepare("INSERT INTO versions (id, document_id, content, content_hash, created_at) VALUES (?, ?, 'c', 'h', ?)");
+  const at = (i: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString().replace("T", " ").slice(0, 19);
+  for (let i = 0; i < MAX_VERSIONS + 5; i++) ins.run(`big-${i}`, "big", at(i));
+  ins.run("big-tie", "big", at(MAX_VERSIONS + 4)); // same second as the newest: both kept, by insertion order
+  for (let i = 0; i < 3; i++) ins.run(`small-${i}`, "small", at(i));
+
+  await captureLogs(() => runCleanup(db as never, Date.now()));
+
+  const ids = (doc: string) =>
+    (d.prepare("SELECT id FROM versions WHERE document_id = ? ORDER BY created_at, rowid").all(doc) as { id: string }[]).map((r) => r.id);
+  const big = ids("big");
+  assert.equal(big.length, MAX_VERSIONS);
+  assert.equal(big[0], "big-6", "the oldest six (of 56) are gone");
+  assert.equal(big.at(-1), "big-tie");
+  assert.deepEqual(ids("small"), ["small-0", "small-1", "small-2"]);
 });

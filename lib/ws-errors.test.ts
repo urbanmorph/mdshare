@@ -29,6 +29,14 @@ test("a logged URL never carries its share key", () => {
   assert.equal(logUrl("not a url"), "(unparseable url)");
 });
 
+test("a logged URL never carries a share token in its path either (/api/links/:token)", () => {
+  assert.equal(logUrl("https://mdshare.live/api/links/viw_secretsecret?key=adm_x"), "https://mdshare.live/api/links/[redacted]");
+  assert.equal(logUrl("https://mdshare.live/api/links/edt_secret/"), "https://mdshare.live/api/links/[redacted]/");
+  // a token-shaped segment anywhere else is redacted too
+  assert.equal(logUrl("https://mdshare.live/x/adm_abcdefgh12345678"), "https://mdshare.live/x/[redacted]");
+  assert.equal(logUrl("https://mdshare.live/api/d/abc123/links"), "https://mdshare.live/api/d/abc123/links");
+});
+
 test("one socket that can't take a message doesn't stop the others, or throw", () => {
   const got: string[] = [];
   const sock = (name: string, open = true, fails = false) => ({

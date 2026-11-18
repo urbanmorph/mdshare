@@ -52,7 +52,7 @@ Each document gets links at four permission levels (admin, edit, comment, view).
 - **WYSIWYG editor:** formatting toolbar, tables, code blocks and keyboard shortcuts.
 - **Inline comments:** anchor a comment to specific text, reply, and resolve.
 - **Real-time sync:** changes broadcast over WebSocket with presence indicators; falls back to polling.
-- **Link management:** revoke links instantly, set optional expiry, up to 50 links per document.
+- **Link management:** revoke links instantly, set optional expiry, up to 50 active links per document.
 - **Version history:** see who edited and when.
 - **Recent documents sync (optional):** an encrypted copy of your recent-documents list, so it follows you across devices. It is encrypted in your browser; the server cannot read it.
 - **REST API, MCP server and command line:** for scripts and for Claude, ChatGPT/Codex, Gemini CLI, Cursor and Windsurf, plus a hosted read-only MCP endpoint.
@@ -188,13 +188,14 @@ Please send a `User-Agent` that names your app (for example `my-app/1.0`). We re
 |--------|---------|
 | Upload | `POST /api/documents` (`Content-Type: text/markdown`, raw markdown body) |
 | Read | `GET /api/d/{id}?key={key}` (`Accept: text/markdown` for raw) |
-| Update | `PUT /api/d/{id}?key={edit_key}` (optional `X-Base-Hash`; 409 if the document changed) |
+| Update | `PUT /api/d/{id}?key={edit_key}` (optional `X-Author`, percent-encoded if not ASCII; optional `X-Base-Hash`: saves are atomic, and a 409 means the document changed and nothing was written) |
 | Patch | `PATCH /api/d/{id}?key={edit_key}` (JSON `{operations: [{find, replace, replace_all?}]}`) |
-| Links | `POST /api/d/{id}/links?key={admin_key}` (`{permission, label, expires_at}`) |
+| Links | `POST /api/d/{id}/links?key={admin_key}` (`{permission, label, expires_at}`; `expires_at` must be a future ISO date) |
+| Manage a link | `PATCH` or `DELETE /api/links/{link_id}?key={admin_key}` (`link_id` from `GET /api/d/{id}/links`; the admin link can't be changed) |
 | Comments | `POST /api/d/{id}/comments?key={key}` |
 | Versions | `GET /api/d/{id}/versions?key={key}` |
 
-Limits: 10 MB per document; 10 creates per minute and 50 per day per IP; 30 updates per minute; 20 comments per minute; 50 links per document. A 429 includes `Retry-After`; an expired document returns 410.
+Limits: 10 MB per document; 10 creates per minute and 50 per day per IP; 30 updates per minute; 20 comments per minute; 50 active links per document; length limits on comments (10,000 characters), author names (100), anchor text (5,000) and link labels (200); titles are cut to 200. A 429 includes `Retry-After`; malformed JSON or an over-long field returns 400; every API route returns 410 for an expired document.
 
 ## Privacy and permissions
 

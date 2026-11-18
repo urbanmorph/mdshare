@@ -223,6 +223,15 @@ export function sanitizeTitle(input: string): string {
 }
 
 /**
+ * A document's title from its first H1, cleaned like an X-Title (sanitizeTitle); null when
+ * there is no H1 or nothing usable remains.
+ */
+export function titleFrom(content: string): string | null {
+  const m = content.match(/^#\s+(.+)$/m);
+  return (m && sanitizeTitle(m[1])) || null;
+}
+
+/**
  * Compute SHA-256 hash of content for change detection.
  */
 export async function contentHash(content: string): Promise<string> {

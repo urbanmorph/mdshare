@@ -1,34 +1,20 @@
 import type { APIRoute } from "astro";
 import { getDB } from "../../../../lib/db";
-import { resolveToken, resolveDocument, canPerform } from "../../../../lib/permissions";
-import { sanitizeMarkdown, contentHash } from "../../../../lib/sanitize";
-import { nanoid } from "nanoid";
-import { checkRateLimit, rateLimitResponse } from "../../../../lib/rate-limit";
+import { authorize, authorizeDocument } from "../../../../lib/authorize";
+import { commitContent, applyOperations } from "../../../../lib/commit";
+import type { CommitOptions } from "../../../../lib/commit";
 import { broadcastUpdate } from "../../../../lib/broadcast";
-import { BASE_HASH_HEADER, isStaleWrite } from "../../../../lib/base-hash";
+import { BASE_HASH_HEADER } from "../../../../lib/base-hash";
+import { readJson, rateLimit, decodeHeader, authorName } from "../../../../lib/request";
 
 export const prerender = false;
 
 export const GET: APIRoute = async ({ request, params }) => {
   const id = params.id!;
-  const url = new URL(request.url);
-  const key = url.searchParams.get("key");
-  if (!key) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
   const db = getDB();
-  const resolved = await resolveDocument(db, key, id);
-  if (!resolved) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
+  const resolved = await authorizeDocument(db, request, id, "view");
+  if (resolved instanceof Response) return resolved;
   const { doc } = resolved;
-
-  const expiresAt = doc.expires_at;
-  if (expiresAt && new Date(expiresAt) < new Date()) {
-    await db.prepare("DELETE FROM documents WHERE id = ?").bind(id).run();
-    return Response.json({ error: "Document has expired" }, { status: 410 });
-  }
 
   const accept = request.headers.get("accept") || "";
 
@@ -61,278 +47,75 @@ export const GET: APIRoute = async ({ request, params }) => {
       last_edited_at: lastVersion?.created_at || null,
       created_at: doc.created_at,
       updated_at: doc.updated_at,
-      expires_at: expiresAt || null,
+      expires_at: doc.expires_at || null,
     },
     { headers: { "X-Content-Source": "user-generated" } }
   );
 };
 
+/** What every save records: how and by whom (X-Author is percent-encoded by the browser). */
+function editor(request: Request, bodyAuthor?: unknown): Pick<CommitOptions, "baseHash" | "editedVia" | "editedBy" | "broadcast"> {
+  return {
+    baseHash: request.headers.get(BASE_HASH_HEADER),
+    editedVia: (request.headers.get("x-edited-via") || "api").slice(0, 32),
+    editedBy: authorName(bodyAuthor, decodeHeader(request.headers.get("x-author"))),
+    broadcast: broadcastUpdate,
+  };
+}
+
 export const PUT: APIRoute = async ({ request, params }) => {
   const t0 = Date.now();
-  const ip = request.headers.get("cf-connecting-ip") || "unknown";
-  const limit = checkRateLimit(ip, "update", { max: 30, windowSec: 60 });
-  if (!limit.allowed) return rateLimitResponse(limit);
+  const limited = rateLimit(request, "update", { max: 30, windowSec: 60 });
+  if (limited) return limited;
 
   const id = params.id!;
-  const url = new URL(request.url);
-  const key = url.searchParams.get("key");
-  if (!key) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
   const db = getDB();
-  const resolved = await resolveToken(db, key);
-  if (!resolved || resolved.documentId !== id) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
+  const resolved = await authorizeDocument(db, request, id, "edit");
+  if (resolved instanceof Response) return resolved;
 
-  if (!canPerform(resolved.permission, "edit")) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const rawContent = await request.text();
-  if (!rawContent.trim()) {
+  const raw = await request.text();
+  if (!raw.trim()) {
     return Response.json({ error: "Empty content" }, { status: 400 });
   }
 
-  const tSanitize = Date.now();
-  let content: string;
-  try {
-    content = await sanitizeMarkdown(rawContent);
-  } catch (err) {
-    return Response.json({ error: (err as Error).message }, { status: 400 });
-  }
-  const hash = await contentHash(content);
-  const sanitizeMs = Date.now() - tSanitize;
-
-  const current = await db
-    .prepare("SELECT content, content_hash FROM documents WHERE id = ?")
-    .bind(id)
-    .first<{ content: string; content_hash: string }>();
-
-  if (!current) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
-  if (current.content_hash === hash) {
-    return Response.json({ status: "unchanged", processing_ms: Date.now() - t0 });
-  }
-
-  // A stale writer (an editor tab that missed newer content) must not overwrite it.
-  if (isStaleWrite(request.headers.get(BASE_HASH_HEADER), current.content_hash)) {
-    return Response.json(
-      { error: "conflict", content: current.content, content_hash: current.content_hash },
-      { status: 409 }
-    );
-  }
-
-  const versionId = nanoid(16);
-  const editedVia = request.headers.get("x-edited-via") || "api";
-  const editedBy = request.headers.get("x-author") || "Anonymous";
-
-  const tDb = Date.now();
-  await db.batch([
-    db
-      .prepare(
-        `INSERT INTO versions (id, document_id, content, content_hash, edited_via, edited_by)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .bind(versionId, id, current.content, current.content_hash, editedVia, editedBy),
-    db
-      .prepare(
-        `UPDATE documents SET content = ?, content_hash = ?, updated_at = datetime('now')
-         WHERE id = ?`
-      )
-      .bind(content, hash, id),
-  ]);
-  const dbMs = Date.now() - tDb;
-
-  const headingMatch = content.match(/^#\s+(.+)$/m);
-  if (headingMatch) {
-    await db
-      .prepare("UPDATE documents SET title = ? WHERE id = ?")
-      .bind(headingMatch[1].trim(), id)
-      .run();
-  }
-
-  await broadcastUpdate(id, content, hash);
-
-  const totalMs = Date.now() - t0;
-  return Response.json(
-    { status: "updated", content_hash: hash, processing_ms: totalMs },
-    {
-      headers: {
-        "Server-Timing": `sanitize;dur=${sanitizeMs}, db;dur=${dbMs}, total;dur=${totalMs}`,
-      },
-    }
-  );
+  return commitContent(db, id, { current: resolved.doc, raw, t0, ...editor(request) });
 };
 
 export const PATCH: APIRoute = async ({ request, params }) => {
   const t0 = Date.now();
-  const ip = request.headers.get("cf-connecting-ip") || "unknown";
-  const limit = checkRateLimit(ip, "update", { max: 30, windowSec: 60 });
-  if (!limit.allowed) return rateLimitResponse(limit);
+  const limited = rateLimit(request, "update", { max: 30, windowSec: 60 });
+  if (limited) return limited;
 
   const id = params.id!;
-  const url = new URL(request.url);
-  const key = url.searchParams.get("key");
-  if (!key) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
   const db = getDB();
-  const resolved = await resolveToken(db, key);
-  if (!resolved || resolved.documentId !== id) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
+  const resolved = await authorizeDocument(db, request, id, "edit");
+  if (resolved instanceof Response) return resolved;
 
-  if (!canPerform(resolved.permission, "edit")) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const body = await readJson<{ operations?: unknown; author?: unknown }>(request);
+  if (body instanceof Response) return body;
 
-  const body = (await request.json()) as {
-    operations: { find: string; replace: string; replace_all?: boolean }[];
-    author?: string;
-  };
-
-  if (!body.operations || !Array.isArray(body.operations) || body.operations.length === 0) {
-    return Response.json({ error: "operations array is required" }, { status: 400 });
-  }
-
-  const current = await db
-    .prepare("SELECT content, content_hash FROM documents WHERE id = ?")
-    .bind(id)
-    .first<{ content: string; content_hash: string }>();
-
-  if (!current) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
-  let content = current.content;
-  const results: { index: number; status: string }[] = [];
-
-  for (let i = 0; i < body.operations.length; i++) {
-    const op = body.operations[i];
-    if (!op.find || op.replace === undefined) {
-      results.push({ index: i, status: "invalid" });
-      continue;
-    }
-
-    if (op.replace_all) {
-      if (!content.includes(op.find)) {
-        results.push({ index: i, status: "not_found" });
-      } else {
-        content = content.split(op.find).join(op.replace);
-        results.push({ index: i, status: "ok" });
-      }
-      continue;
-    }
-
-    const firstIndex = content.indexOf(op.find);
-    if (firstIndex === -1) {
-      results.push({ index: i, status: "not_found" });
-      continue;
-    }
-
-    if (firstIndex !== content.lastIndexOf(op.find)) {
-      results.push({ index: i, status: "ambiguous" });
-      continue;
-    }
-
-    content = content.slice(0, firstIndex) + op.replace + content.slice(firstIndex + op.find.length);
-    results.push({ index: i, status: "ok" });
-  }
-
-  const applied = results.filter((r) => r.status === "ok").length;
-
+  const patched = applyOperations(resolved.doc.content, body.operations);
+  if (patched instanceof Response) return patched;
+  const { applied, results } = patched;
   if (applied === 0) {
     return Response.json({ applied: 0, operations: results }, { status: 422 });
   }
 
-  const tSanitize = Date.now();
-  let sanitized: string;
-  try {
-    sanitized = await sanitizeMarkdown(content);
-  } catch (err) {
-    return Response.json({ error: (err as Error).message }, { status: 400 });
-  }
-  const hash = await contentHash(sanitized);
-  const sanitizeMs = Date.now() - tSanitize;
-
-  if (current.content_hash === hash) {
-    return Response.json({ applied: 0, operations: results, status: "unchanged", processing_ms: Date.now() - t0 });
-  }
-
-  // A stale writer (an editor tab that missed newer content) must not overwrite it.
-  if (isStaleWrite(request.headers.get(BASE_HASH_HEADER), current.content_hash)) {
-    return Response.json(
-      { error: "conflict", content: current.content, content_hash: current.content_hash },
-      { status: 409 }
-    );
-  }
-
-  const versionId = nanoid(16);
-  const editedVia = request.headers.get("x-edited-via") || "api";
-  const editedBy = body.author || request.headers.get("x-author") || "Anonymous";
-
-  const tDb = Date.now();
-  await db.batch([
-    db
-      .prepare(
-        `INSERT INTO versions (id, document_id, content, content_hash, edited_via, edited_by)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .bind(versionId, id, current.content, current.content_hash, editedVia, editedBy),
-    db
-      .prepare(
-        `UPDATE documents SET content = ?, content_hash = ?, updated_at = datetime('now')
-         WHERE id = ?`
-      )
-      .bind(sanitized, hash, id),
-  ]);
-  const dbMs = Date.now() - tDb;
-
-  const headingMatch = sanitized.match(/^#\s+(.+)$/m);
-  if (headingMatch) {
-    await db
-      .prepare("UPDATE documents SET title = ? WHERE id = ?")
-      .bind(headingMatch[1].trim(), id)
-      .run();
-  }
-
-  await broadcastUpdate(id, sanitized, hash);
-
-  const totalMs = Date.now() - t0;
-  return Response.json(
-    { applied, operations: results, content_hash: hash, processing_ms: totalMs },
-    {
-      headers: {
-        "Server-Timing": `sanitize;dur=${sanitizeMs}, db;dur=${dbMs}, total;dur=${totalMs}`,
-      },
-    }
-  );
+  return commitContent(db, id, {
+    current: resolved.doc,
+    raw: patched.content,
+    t0,
+    extra: { applied, operations: results },
+    ...editor(request, body.author),
+  });
 };
 
 export const DELETE: APIRoute = async ({ request, params }) => {
-  const id = params.id!;
-  const url = new URL(request.url);
-  const key = url.searchParams.get("key");
-  if (!key) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
   const db = getDB();
-  const resolved = await resolveToken(db, key);
-  if (!resolved || resolved.documentId !== id) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
+  const resolved = await authorize(db, request, params.id!, "admin");
+  if (resolved instanceof Response) return resolved;
 
-  if (resolved.permission !== "admin") {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  await db.prepare("DELETE FROM documents WHERE id = ?").bind(id).run();
+  await db.prepare("DELETE FROM documents WHERE id = ?").bind(resolved.documentId).run();
 
   return Response.json({ status: "deleted" });
 };

@@ -3,8 +3,8 @@
 # same headers — this file covers the prerendered pages that bypass the
 # worker (homepage, /docs, llms.txt, og.png, etc).
 #
-# Keep the header values identical to src/worker.ts so static + dynamic
-# responses are consistent.
+# Keep the header values identical to lib/security-headers.ts (which
+# src/worker.ts sets); lib/security-headers.test.ts fails when they differ.
 
 /*
   X-Content-Type-Options: nosniff
@@ -18,3 +18,8 @@
 /mdshare-vscode.vsix
   Content-Type: application/vsix
   Content-Disposition: attachment; filename="mdshare-vscode.vsix"
+
+# /docs/raw is prerendered to a file with no extension, so the Content-Type that
+# src/pages/docs/raw.ts sets is lost; without this rule it goes out with none.
+/docs/raw
+  Content-Type: text/markdown; charset=utf-8

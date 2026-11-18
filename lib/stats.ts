@@ -3,10 +3,12 @@
  * These survive document deletion — they're lifetime totals.
  */
 export async function incrementStat(db: D1Database, key: string, amount = 1) {
-  await db
-    .prepare("UPDATE stats SET value = value + ? WHERE key = ?")
-    .bind(amount, key)
-    .run();
+  await incrementStatStatement(db, key, amount).run();
+}
+
+/** The increment as a statement, to ride in a db.batch with the write it counts. */
+export function incrementStatStatement(db: D1Database, key: string, amount = 1): D1PreparedStatement {
+  return db.prepare("UPDATE stats SET value = value + ? WHERE key = ?").bind(amount, key);
 }
 
 export async function getStats(db: D1Database): Promise<{

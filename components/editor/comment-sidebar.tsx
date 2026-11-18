@@ -1,6 +1,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { apiUrl } from "@/lib/api-url";
+import { parseSqliteDate } from "@/lib/sqlite-date";
 
 export interface Comment {
   id: string;
@@ -48,12 +50,11 @@ export function CommentSidebar({
   onClosePanel,
 }: CommentSidebarProps) {
   const selectedText = pendingAnchor?.text ?? "";
-  const submitKey =
-    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
-      ? "⌘↵"
-      : "Ctrl+↵";
+  const submitKey = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘↵" : "Ctrl+↵";
   const [newComment, setNewComment] = useState("");
   const [posting, setPosting] = useState(false);
+  // A failed post, reply or resolve, shown under the form until the next attempt.
+  const [error, setError] = useState<string | null>(null);
   const [showResolved, setShowResolved] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
@@ -68,14 +69,29 @@ export function CommentSidebar({
     prevSelectedTextRef.current = selectedText;
   }, [selectedText]);
 
-  const toggleResolve = async (commentId: string, currentlyResolved: boolean) => {
-    await fetch(`/api/comments/${commentId}?key=${tokenKey}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ resolved: !currentlyResolved }),
-    });
-    onCommentsChange();
+  /** Send a comment request; true if it worked, otherwise shows `failure`. */
+  const send = async (path: string, method: "POST" | "PATCH", body: object, failure: string) => {
+    setError(null);
+    try {
+      const res = await fetch(apiUrl(path, tokenKey), {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        onCommentsChange();
+        return true;
+      }
+    } catch {
+      // offline or blocked; reported below
+    }
+    setError(failure);
+    return false;
   };
+
+  const toggleResolve = (commentId: string, currentlyResolved: boolean) =>
+    send(`/api/comments/${commentId}`, "PATCH", { resolved: !currentlyResolved },
+      currentlyResolved ? "Couldn't reopen the comment. Try again." : "Couldn't resolve the comment. Try again.");
 
   const unresolvedComments = comments.filter((c) => !c.resolved);
   const resolvedComments = comments.filter((c) => c.resolved);
@@ -103,63 +119,39 @@ export function CommentSidebar({
   const postReply = async (parentId: string) => {
     if (!replyText.trim()) return;
     setPosting(true);
-    try {
-      const res = await fetch(
-        `/api/d/${documentId}/comments?key=${tokenKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            content: replyText,
-            author_name: displayName,
-            parent_id: parentId,
-          }),
-        }
-      );
-      if (res.ok) {
-        setReplyText("");
-        setReplyingTo(null);
-        onCommentsChange();
-        onAfterOwnPost?.();
-      }
-    } finally {
-      setPosting(false);
+    const ok = await send(`/api/d/${documentId}/comments`, "POST", {
+      content: replyText,
+      author_name: displayName,
+      parent_id: parentId,
+    }, "Couldn't send your reply. Try again.");
+    setPosting(false);
+    if (ok) {
+      setReplyText("");
+      setReplyingTo(null);
+      onAfterOwnPost?.();
     }
   };
 
   const postComment = async () => {
     if (!newComment.trim()) return;
     setPosting(true);
-    try {
-      const res = await fetch(
-        `/api/d/${documentId}/comments?key=${tokenKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            content: newComment,
-            author_name: displayName,
-            anchor_text: pendingAnchor?.text ?? null,
-            anchor_start: pendingAnchor?.start ?? null,
-            anchor_end: pendingAnchor?.end ?? null,
-          }),
-        }
-      );
-      if (res.ok) {
-        setNewComment("");
-        onClearSelection();
-        onCommentsChange();
-        onAfterOwnPost?.();
-      }
-    } finally {
-      setPosting(false);
+    const ok = await send(`/api/d/${documentId}/comments`, "POST", {
+      content: newComment,
+      author_name: displayName,
+      anchor_text: pendingAnchor?.text ?? null,
+      anchor_start: pendingAnchor?.start ?? null,
+      anchor_end: pendingAnchor?.end ?? null,
+    }, "Couldn't post your comment. Try again.");
+    setPosting(false);
+    if (ok) {
+      setNewComment("");
+      onClearSelection();
+      onAfterOwnPost?.();
     }
   };
 
   const timeAgo = (dateStr: string) => {
-    const seconds = Math.floor(
-      (Date.now() - new Date(dateStr + "Z").getTime()) / 1000
-    );
+    const seconds = Math.floor((Date.now() - parseSqliteDate(dateStr)) / 1000);
     if (seconds < 60) return "just now";
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;
@@ -249,6 +241,12 @@ export function CommentSidebar({
             {posting ? <><Spinner context="comment" /></> : "Post Comment"}
           </button>
         </div>
+      )}
+
+      {error && (
+        <p role="alert" className="text-xs text-red-400 mb-3">
+          {error}
+        </p>
       )}
 
       {/* Comment list — grouped with replies */}

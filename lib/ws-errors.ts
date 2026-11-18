@@ -14,11 +14,17 @@ export function isSessionGone(err: unknown): boolean {
   return flags.retryable === true || flags.overloaded === true || SESSION_GONE.test(err.message);
 }
 
-/** A URL fit for a log: origin and path, never the query, which carries the share key. */
+// path segments that may be a share token: /api/links/:token, or anything token-shaped
+const TOKEN_IN_PATH = /(\/api\/links\/)[^/]+|(?<=\/)(?:adm|edt|viw|cmt)_[^/]*/g;
+
+/**
+ * A URL fit for a log: origin and path, never the query, which carries the share key, and with
+ * any share token in the path redacted.
+ */
 export function logUrl(url: string): string {
   try {
     const u = new URL(url);
-    return u.origin + u.pathname;
+    return u.origin + u.pathname.replace(TOKEN_IN_PATH, (_m, links?: string) => `${links ?? ""}[redacted]`);
   } catch {
     return "(unparseable url)";
   }

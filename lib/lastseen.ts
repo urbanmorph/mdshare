@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { safeGet, safeSet, safeRemove } from "./storage.ts";
+import { parseSqliteDate } from "./sqlite-date.ts";
 
 // localStorage-only "last seen" tracker for the unread-comments badge.
 // One key per document. Browser-scoped, no identity, no server state.
@@ -10,25 +12,15 @@ function key(docId: string) {
   return `${KEY_PREFIX}${docId}`;
 }
 
-function readLastSeen(docId: string): string | null {
-  if (typeof localStorage === "undefined") return null;
-  return localStorage.getItem(key(docId));
-}
-
-function writeLastSeen(docId: string, iso: string) {
-  if (typeof localStorage === "undefined") return;
-  localStorage.setItem(key(docId), iso);
-}
-
 /**
  * Seed lastseen to "now" if not yet set, so a first visit doesn't show
  * "all comments are unread" noise. Returns the value that ended up stored.
  */
 export function seedLastSeenIfMissing(docId: string): string {
-  const existing = readLastSeen(docId);
+  const existing = safeGet(key(docId));
   if (existing) return existing;
   const now = new Date().toISOString();
-  writeLastSeen(docId, now);
+  safeSet(key(docId), now);
   return now;
 }
 
@@ -37,34 +29,29 @@ export function seedLastSeenIfMissing(docId: string): string {
  * unbounded across hundreds of docs. Cheap to call on mount.
  */
 export function pruneLastSeen() {
-  if (typeof localStorage === "undefined") return;
   const entries: [string, string][] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k?.startsWith(KEY_PREFIX)) {
-      const v = localStorage.getItem(k);
-      if (v) entries.push([k, v]);
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const v = k?.startsWith(KEY_PREFIX) ? localStorage.getItem(k) : null;
+      if (k && v) entries.push([k, v]);
     }
+  } catch {
+    return; // storage blocked
   }
   if (entries.length <= MAX_KEYS) return;
   entries.sort((a, b) => a[1].localeCompare(b[1]));
-  const toDelete = entries.slice(0, entries.length - MAX_KEYS);
-  for (const [k] of toDelete) localStorage.removeItem(k);
+  for (const [k] of entries.slice(0, entries.length - MAX_KEYS)) safeRemove(k);
 }
 
 interface CommentLike {
   created_at: string;
 }
 
-function countUnread(lastSeen: string | null, comments: CommentLike[]): number {
+export function countUnread(lastSeen: string | null, comments: CommentLike[]): number {
   if (!lastSeen) return 0;
-  // SQLite returns timestamps without trailing Z; treat as UTC.
-  const cutoff = new Date(lastSeen).getTime();
-  let n = 0;
-  for (const c of comments) {
-    if (new Date(c.created_at + "Z").getTime() > cutoff) n++;
-  }
-  return n;
+  const cutoff = Date.parse(lastSeen);
+  return comments.filter((c) => parseSqliteDate(c.created_at) > cutoff).length;
 }
 
 /**
@@ -73,9 +60,7 @@ function countUnread(lastSeen: string | null, comments: CommentLike[]): number {
  * here in real-time.
  */
 export function useUnreadCount(docId: string, comments: CommentLike[]) {
-  const [lastSeen, setLastSeen] = useState<string | null>(() =>
-    typeof localStorage === "undefined" ? null : readLastSeen(docId)
-  );
+  const [lastSeen, setLastSeen] = useState(() => safeGet(key(docId)));
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
@@ -87,11 +72,11 @@ export function useUnreadCount(docId: string, comments: CommentLike[]) {
 
   const markSeen = useCallback(() => {
     const now = new Date().toISOString();
-    writeLastSeen(docId, now);
-    setLastSeen(now);
+    safeSet(key(docId), now);
     // The `storage` event does NOT fire in the same tab that wrote it, so
-    // any other tab will be notified by the listener above; this tab updates
-    // its own state directly via setLastSeen.
+    // other tabs hear about it through the listener above; this tab updates
+    // its own state directly.
+    setLastSeen(now);
   }, [docId]);
 
   return { unreadCount: countUnread(lastSeen, comments), markSeen };

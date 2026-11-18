@@ -3,7 +3,8 @@ import { initWasm, Resvg } from "@resvg/resvg-wasm";
 // The Cloudflare adapter bundles this .wasm import as a WebAssembly.Module.
 import resvgWasm from "@resvg/resvg-wasm/index_bg.wasm";
 import { getDB } from "../../../../lib/db";
-import { resolveDocument } from "../../../../lib/permissions";
+import { resolveDocument, isExpired } from "../../../../lib/permissions";
+import { rateLimit } from "../../../../lib/request";
 import { detectScript } from "../../../../lib/detect-script";
 import { stripForOgTitle, wrapTitle, buildCardSvg } from "../../../../lib/og-image";
 
@@ -46,10 +47,12 @@ export const GET: APIRoute = async ({ params, request }) => {
   const id = params.id!;
   const key = new URL(request.url).searchParams.get("key");
   if (!key) return Response.redirect(FALLBACK, 302);
+  // rendering is the costly part: past the limit, the static card
+  if (rateLimit(request, "og", { max: 30, windowSec: 60 })) return Response.redirect(FALLBACK, 302);
 
   try {
     const doc = (await resolveDocument(getDB(), key, id))?.doc;
-    if (!doc) return Response.redirect(FALLBACK, 302);
+    if (!doc || isExpired(doc.expires_at)) return Response.redirect(FALLBACK, 302);
 
     const loc = detectScript(doc.content || doc.title || "");
     const title = stripForOgTitle(doc.title || "Untitled");

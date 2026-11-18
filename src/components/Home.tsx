@@ -2,6 +2,10 @@ import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from "
 import { Spinner } from "../../components/ui/spinner";
 import { getRecentDocsSnapshot, getServerRecentDocs, subscribeRecentDocs } from "../../lib/recent-docs";
 import { RecentSync } from "./RecentSync";
+import { apiUrl } from "../../lib/api-url";
+import { permissionBadgeClass } from "../../lib/permission-style";
+import { responseError } from "../../lib/response-error";
+import { useCopy } from "../../lib/use-copy";
 
 interface CreateResult {
   document_id: string;
@@ -10,12 +14,21 @@ interface CreateResult {
   expires_at?: string;
 }
 
+// The message for a failed create: the server's reason, or plain words for a lost
+// connection (fetch's TypeError) or an unreadable reply (SyntaxError).
+const failureText = (err: unknown) =>
+  err instanceof TypeError
+    ? "Couldn't reach mdshare. Check your connection and try again."
+    : err instanceof Error && !(err instanceof SyntaxError)
+      ? err.message
+      : "Something went wrong";
+
 export default function Home() {
   const [content, setContent] = useState("");
   const [result, setResult] = useState<CreateResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const { copy, copied, label: copyLabel } = useCopy();
   const [isDragging, setIsDragging] = useState(false);
   const recentDocs = useSyncExternalStore(subscribeRecentDocs, getRecentDocsSnapshot, getServerRecentDocs);
   const [showAllRecent, setShowAllRecent] = useState(false);
@@ -55,14 +68,11 @@ export default function Home() {
         },
         body: "# Untitled\n\n",
       });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error || "Failed to create document");
-      }
+      if (!res.ok) throw new Error(await responseError(res, "Failed to create document"));
       const data: CreateResult = await res.json();
       window.location.href = `${data.admin_url}&new=1`;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(failureText(err));
       setLoading(false);
     }
   }, []);
@@ -84,15 +94,12 @@ export default function Home() {
         body: text,
       });
 
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error || "Failed to create document");
-      }
+      if (!res.ok) throw new Error(await responseError(res, "Failed to create document"));
 
       const data: CreateResult = await res.json();
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(failureText(err));
     } finally {
       setLoading(false);
     }
@@ -104,9 +111,12 @@ export default function Home() {
       return;
     }
 
-    const text = await file.text();
-    setContent(text);
-    setError("");
+    try {
+      setContent(await file.text());
+      setError("");
+    } catch {
+      setError("Couldn't read that file");
+    }
   }, []);
 
   const handleDrop = useCallback(
@@ -153,18 +163,14 @@ export default function Home() {
                   className="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm font-mono text-neutral-300 truncate"
                 />
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(result.admin_url);
-                    setCopiedField("url");
-                    setTimeout(() => setCopiedField(null), 2000);
-                  }}
+                  onClick={() => copy(result.admin_url, "url")}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors min-w-[72px] ${
-                    copiedField === "url"
+                    copied("url")
                       ? "bg-green-700 text-green-100"
                       : "bg-indigo-600 hover:bg-indigo-500 text-white"
                   }`}
                 >
-                  {copiedField === "url" ? "Copied!" : "Copy"}
+                  {copyLabel("url", "Copy")}
                 </button>
               </div>
             </div>
@@ -181,18 +187,14 @@ export default function Home() {
                   className="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm font-mono text-neutral-300 truncate"
                 />
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(result.admin_key);
-                    setCopiedField("key");
-                    setTimeout(() => setCopiedField(null), 2000);
-                  }}
+                  onClick={() => copy(result.admin_key, "key")}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors min-w-[72px] ${
-                    copiedField === "key"
+                    copied("key")
                       ? "bg-green-700 text-green-100"
                       : "bg-neutral-700 hover:bg-neutral-600 text-neutral-300"
                   }`}
                 >
-                  {copiedField === "key" ? "Copied!" : "Copy"}
+                  {copyLabel("key", "Copy")}
                 </button>
               </div>
             </div>
@@ -392,21 +394,13 @@ export default function Home() {
               {(showAllRecent ? recentDocs : recentDocs.slice(0, 5)).map((doc) => (
                 <a
                   key={`${doc.id}-${doc.key}`}
-                  href={`/d/${doc.id}?key=${doc.key}`}
+                  href={apiUrl(`/d/${encodeURIComponent(doc.id)}`, doc.key)}
                   className="flex items-center justify-between px-3 py-2 rounded-lg bg-neutral-900/50 hover:bg-neutral-800/50 transition-colors group"
                 >
                   <span className="text-sm text-neutral-300 group-hover:text-white truncate">
                     {doc.title}
                   </span>
-                  <span className={`text-[11px] px-1.5 py-0.5 rounded uppercase font-semibold shrink-0 ml-2 ${
-                    doc.permission === "admin"
-                      ? "bg-purple-900/50 text-purple-300"
-                      : doc.permission === "edit"
-                      ? "bg-blue-900/50 text-blue-300"
-                      : doc.permission === "comment"
-                      ? "bg-amber-900/50 text-amber-300"
-                      : "bg-neutral-800 text-neutral-400"
-                  }`}>
+                  <span className={`text-[11px] px-1.5 py-0.5 rounded uppercase font-semibold shrink-0 ml-2 ${permissionBadgeClass(doc.permission)}`}>
                     {doc.permission}
                   </span>
                 </a>

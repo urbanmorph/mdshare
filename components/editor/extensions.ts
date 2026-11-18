@@ -48,3 +48,8 @@ export function editorExtensions({ editable }: { editable: boolean }) {
     CommentHighlight,
   ];
 }
+
+/** The editor's content as markdown (tiptap-markdown's storage is untyped). */
+export function getMarkdown(editor: { storage: unknown }): string {
+  return (editor.storage as { markdown: { getMarkdown(): string } }).markdown.getMarkdown();
+}

@@ -1,10 +1,13 @@
-
 import { useState, useCallback, useEffect } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { apiUrl } from "@/lib/api-url";
+import { permissionBadgeClass } from "@/lib/permission-style";
+import { responseError } from "@/lib/response-error";
+import { useCopy } from "@/lib/use-copy";
+import { linkUrl, linksUrl } from "./link-api";
 
 interface LinkItem {
   id: string;
-  token: string | null;
   permission: string;
   label: string | null;
   is_active: number;
@@ -19,11 +22,43 @@ interface LinkManagerProps {
   documentExpiresAt?: string | null;
 }
 
+const OFFLINE = "Couldn't reach mdshare. Check your connection and try again.";
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
+type LinksResult = { links: LinkItem[] } | { error: string };
+
+async function loadLinks(documentId: string, adminKey: string): Promise<LinksResult> {
+  try {
+    const res = await fetch(linksUrl(documentId, adminKey));
+    if (!res.ok) return { error: await responseError(res, "Couldn't load share links.") };
+    return { links: ((await res.json()) as { links: LinkItem[] }).links };
+  } catch {
+    return { error: OFFLINE };
+  }
+}
+
+// datetime-local wants "YYYY-MM-DDTHH:mm" in the viewer's local time.
+function toLocalInput(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Document expiry may be set from a minute from now up to a year out. */
+function expiryBounds() {
+  const now = Date.now();
+  return {
+    min: toLocalInput(new Date(now + 60_000)),
+    max: toLocalInput(new Date(now + 365 * 24 * 60 * 60 * 1000)),
+  };
+}
+
 export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkManagerProps) {
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
   const [docExpiry, setDocExpiry] = useState<string | null>(documentExpiresAt ?? null);
   const [newDocExpiry, setNewDocExpiry] = useState("");
+  const [expiryLimits] = useState(expiryBounds);
   const [savingExpiry, setSavingExpiry] = useState(false);
   const [expiryError, setExpiryError] = useState<string | null>(null);
   const [expirySaved, setExpirySaved] = useState(false);
@@ -31,133 +66,136 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
   const [newLabel, setNewLabel] = useState("");
   const [newExpiry, setNewExpiry] = useState("");
   const [creating, setCreating] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adminKeyRevealed, setAdminKeyRevealed] = useState(false);
-  const [adminKeyCopied, setAdminKeyCopied] = useState(false);
+  const { copy, copied, label: copyLabel } = useCopy();
 
-  const fetchLinks = useCallback(async () => {
-    const res = await fetch(`/api/d/${documentId}/links?key=${adminKey}`);
-    if (res.ok) {
-      const data = (await res.json()) as { links: LinkItem[] };
-      setLinks(data.links);
-      setLoaded(true);
+  const showLinks = useCallback((r: LinksResult) => {
+    if ("links" in r) {
+      setLinks(r.links);
+      setListError(null);
+    } else {
+      setListError(r.error);
     }
-  }, [documentId, adminKey]);
+    setLoaded(true);
+  }, []);
 
   useEffect(() => {
-    fetchLinks();
-  }, [fetchLinks]);
+    let live = true;
+    loadLinks(documentId, adminKey).then((r) => {
+      if (live) showLinks(r);
+    });
+    return () => {
+      live = false;
+    };
+  }, [documentId, adminKey, showLinks]);
+
+  const refreshLinks = async () => showLinks(await loadLinks(documentId, adminKey));
 
   const createLink = async () => {
+    const expires = newExpiry ? new Date(newExpiry) : null;
+    if (expires && Number.isNaN(expires.getTime())) {
+      setError("Pick a valid expiry date.");
+      return;
+    }
     setCreating(true);
+    setError(null);
     try {
-      const res = await fetch(`/api/d/${documentId}/links?key=${adminKey}`, {
+      const res = await fetch(linksUrl(documentId, adminKey), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: JSON_HEADERS,
         body: JSON.stringify({
           permission: newPerm,
           label: newLabel || null,
-          expires_at: newExpiry ? new Date(newExpiry).toISOString() : null,
+          expires_at: expires ? expires.toISOString() : null,
         }),
       });
       if (!res.ok) {
-        const err = (await res.json()) as { error?: string };
-        setError(err.error || "Failed to create link");
+        setError(await responseError(res, "Failed to create link"));
         return;
       }
-      setError(null);
-
       const data = (await res.json()) as { url: string };
-
-      // Auto-copy the new link
-      navigator.clipboard.writeText(data.url);
       setNewLabel("");
       setNewExpiry("");
-
-      // Refetch to get the updated list with URLs
-      await fetchLinks();
-
-      // Flash "Copied" on the newest link
-      if (links.length >= 0) {
-        // The newest will be first after refetch, use a small delay
-        setTimeout(() => {
-          const el = document.querySelector("[data-newest-link]");
-          if (el) el.scrollIntoView({ behavior: "smooth" });
-        }, 100);
+      if (!(await copy(data.url, "new"))) {
+        setError("Link created, but it couldn't be copied. Use Copy Link above.");
       }
+      await refreshLinks();
+      // The newest link is first in the list.
+      setTimeout(() => {
+        document.querySelector("[data-newest-link]")?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } catch {
+      setError(OFFLINE);
     } finally {
       setCreating(false);
     }
   };
 
-  const copyUrl = (linkId: string, url: string) => {
-    navigator.clipboard.writeText(url);
-    setCopiedId(linkId);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const revokeLink = async (link: LinkItem) => {
-    if (!link.token) return;
-    setRevokingId(link.id);
+  // Revoke, re-activate or delete one link (by id, so a revoked link can come back), then reload.
+  const changeLink = async (link: LinkItem, init: RequestInit, failure: string) => {
+    setBusyId(link.id);
+    setListError(null);
     try {
-      const res = await fetch(`/api/links/${link.token}?key=${adminKey}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: false }),
-      });
-      if (res.ok) await fetchLinks();
+      const res = await fetch(linkUrl(link, adminKey), init);
+      if (!res.ok) {
+        setListError(await responseError(res, failure));
+        return;
+      }
+      await refreshLinks();
+    } catch {
+      setListError(OFFLINE);
     } finally {
-      setRevokingId(null);
+      setBusyId(null);
     }
   };
-
-  // datetime-local wants "YYYY-MM-DDTHH:mm" in the viewer's local time.
-  const toLocalInput = (d: Date) => {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-  const minExpiry = toLocalInput(new Date(Date.now() + 60_000));
-  const maxExpiry = toLocalInput(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000));
+  const setActive = (link: LinkItem, active: boolean) =>
+    changeLink(
+      link,
+      { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ is_active: active }) },
+      active ? "Couldn't re-activate the link." : "Couldn't revoke the link."
+    );
+  const deleteLink = (link: LinkItem) =>
+    changeLink(link, { method: "DELETE" }, "Couldn't delete the link.");
 
   const updateExpiry = async () => {
     if (!newDocExpiry) return;
+    const when = new Date(newDocExpiry);
+    if (Number.isNaN(when.getTime())) {
+      setExpiryError("Pick a valid date.");
+      return;
+    }
     setSavingExpiry(true);
     setExpiryError(null);
     try {
-      const iso = new Date(newDocExpiry).toISOString();
-      const res = await fetch(`/api/d/${documentId}/expiry?key=${adminKey}`, {
+      const iso = when.toISOString();
+      const res = await fetch(apiUrl(`/api/d/${encodeURIComponent(documentId)}/expiry`, adminKey), {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: JSON_HEADERS,
         body: JSON.stringify({ expires_at: iso }),
       });
-      const data = (await res.json()) as { expires_at?: string; error?: string };
       if (!res.ok) {
-        setExpiryError(data.error || "Failed to update expiry");
+        setExpiryError(await responseError(res, "Failed to update expiry"));
         return;
       }
+      const data = (await res.json()) as { expires_at?: string };
       setDocExpiry(data.expires_at ?? iso);
       setNewDocExpiry("");
       setExpirySaved(true);
       setTimeout(() => setExpirySaved(false), 2000);
+    } catch {
+      setExpiryError(OFFLINE);
     } finally {
       setSavingExpiry(false);
     }
   };
 
-  const permColor = (perm: string) => {
-    switch (perm) {
-      case "edit":
-        return "bg-blue-900/50 text-blue-300";
-      case "view":
-        return "bg-neutral-800 text-neutral-400";
-      case "comment":
-        return "bg-amber-900/50 text-amber-300";
-      default:
-        return "bg-neutral-800 text-neutral-400";
-    }
-  };
+  const smallButton = "px-2 py-1.5 text-xs rounded transition-colors disabled:opacity-50";
+  const plainButton = `${smallButton} bg-neutral-800 hover:bg-neutral-700 text-neutral-300`;
+  const copyButton = (id: string) =>
+    `${smallButton} ${copied(id) ? "bg-green-800 text-green-200" : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300"}`;
+  const dangerButton = `${smallButton} bg-red-900/50 hover:bg-red-800/60 text-red-300`;
 
   return (
     <div className="w-full bg-neutral-950 p-4 overflow-y-auto h-full">
@@ -178,8 +216,8 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
         <input
           type="datetime-local"
           value={newDocExpiry}
-          min={minExpiry}
-          max={maxExpiry}
+          min={expiryLimits.min}
+          max={expiryLimits.max}
           onChange={(e) => setNewDocExpiry(e.target.value)}
           aria-label="New document expiry date"
           className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-300 touch-manipulation [color-scheme:dark] mb-2"
@@ -195,52 +233,68 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
           Future dates only (up to 1 year). Set a nearer date to delete sooner.
         </p>
         {expiryError && (
-          <p className="text-[11px] text-red-400 mt-1.5">{expiryError}</p>
+          <p role="alert" className="text-[11px] text-red-400 mt-1.5">{expiryError}</p>
         )}
       </div>
 
       {/* Links list */}
+      {listError && (
+        <p role="alert" className="text-[11px] text-red-400 mb-2">{listError}</p>
+      )}
       <div className="space-y-2 mb-4">
         {links.map((link, i) => {
-          const isCopied = copiedId === link.id;
+          const busy = busyId === link.id;
 
           return (
             <div
               key={link.id}
-              className={`bg-neutral-900 rounded-lg p-3 ${!link.is_active ? "opacity-50" : ""}`}
+              className="bg-neutral-900 rounded-lg p-3"
               {...(i === 0 ? { "data-newest-link": "" } : {})}
             >
-              <div className="flex items-center justify-between mb-1.5">
+              <div className={`flex items-center justify-between mb-1.5 ${!link.is_active ? "opacity-60" : ""}`}>
                 <span className={`text-xs text-neutral-300 font-medium truncate ${!link.is_active ? "line-through" : ""}`}>
                   {link.label || "Untitled"}
                 </span>
                 <span
-                  className={`text-[11px] px-1.5 py-0.5 rounded uppercase font-semibold shrink-0 ml-2 ${permColor(
-                    link.permission
-                  )}`}
+                  className={`text-[11px] px-1.5 py-0.5 rounded uppercase font-semibold shrink-0 ml-2 ${permissionBadgeClass(link.permission)}`}
                 >
                   {link.permission}
                 </span>
               </div>
 
-              {!!link.is_active && link.url && (
+              {link.is_active ? (
+                <div className="flex gap-1.5">
+                  {link.url && (
+                    <button
+                      onClick={() => copy(link.url!, link.id)}
+                      className={`flex-1 ${copyButton(link.id)}`}
+                    >
+                      {copyLabel(link.id, "Copy Link")}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setActive(link, false)}
+                    disabled={busy}
+                    className={dangerButton}
+                  >
+                    {busy ? "..." : "Revoke"}
+                  </button>
+                </div>
+              ) : (
                 <div className="flex gap-1.5">
                   <button
-                    onClick={() => copyUrl(link.id, link.url!)}
-                    className={`flex-1 px-2 py-1.5 text-xs rounded transition-colors ${
-                      isCopied
-                        ? "bg-green-800 text-green-200"
-                        : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300"
-                    }`}
+                    onClick={() => setActive(link, true)}
+                    disabled={busy}
+                    className={`flex-1 ${plainButton}`}
                   >
-                    {isCopied ? "Copied!" : "Copy Link"}
+                    {busy ? "..." : "Re-activate"}
                   </button>
                   <button
-                    onClick={() => revokeLink(link)}
-                    disabled={revokingId === link.id}
-                    className="px-2 py-1.5 text-xs rounded bg-red-900/50 hover:bg-red-800/60 text-red-300 transition-colors disabled:opacity-50"
+                    onClick={() => deleteLink(link)}
+                    disabled={busy}
+                    className={dangerButton}
                   >
-                    {revokingId === link.id ? "..." : "Revoke"}
+                    Delete
                   </button>
                 </div>
               )}
@@ -269,7 +323,7 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
             </div>
           );
         })}
-        {loaded && links.length === 0 && (
+        {loaded && !listError && links.length === 0 && (
           <p className="text-xs text-neutral-400 text-center py-2">
             Generate links and collaborate with others by sharing it
           </p>
@@ -315,10 +369,10 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
           {creating ? <Spinner context="link" /> : "Generate Link"}
         </button>
         {error && (
-          <p className="text-[11px] text-red-400 mt-2 text-center">{error}</p>
+          <p role="alert" className="text-[11px] text-red-400 mt-2 text-center">{error}</p>
         )}
         <p className="text-[11px] text-neutral-400 mt-2 text-center">
-          Auto-copied to clipboard on creation
+          {copied("new") ? "Copied to clipboard" : "Auto-copied to clipboard on creation"}
         </p>
       </div>
 
@@ -339,23 +393,12 @@ export function LinkManager({ documentId, adminKey, documentExpiresAt }: LinkMan
             <button
               onClick={() => setAdminKeyRevealed((v) => !v)}
               aria-label={adminKeyRevealed ? "Hide admin key" : "Reveal admin key"}
-              className="px-2 py-1.5 text-xs rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors"
+              className={plainButton}
             >
               {adminKeyRevealed ? "Hide" : "Show"}
             </button>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(adminKey);
-                setAdminKeyCopied(true);
-                setTimeout(() => setAdminKeyCopied(false), 1500);
-              }}
-              className={`px-2 py-1.5 text-xs rounded transition-colors ${
-                adminKeyCopied
-                  ? "bg-green-800 text-green-200"
-                  : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300"
-              }`}
-            >
-              {adminKeyCopied ? "Copied!" : "Copy"}
+            <button onClick={() => copy(adminKey, "admin-key")} className={copyButton("admin-key")}>
+              {copyLabel("admin-key", "Copy")}
             </button>
           </div>
           <p className="text-[11px] text-neutral-400 leading-relaxed mt-2">
