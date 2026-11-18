@@ -38,17 +38,23 @@ mdshare is deliberately minimal. The core value is: upload markdown, get a link,
 
 - `lib/sanitize.ts` — content sanitization pipeline (security-critical)
 - `lib/tokens.ts` — token generation and verification
-- `lib/permissions.ts` — permission resolution from tokens
+- `lib/permissions.ts` — permission resolution from tokens (`resolveAccess`, `findLink`)
+- `lib/authorize.ts` — the one gate every API route uses: key → link → document, permission check, 404/403/410
+- `lib/commit.ts` — the save path for PUT and PATCH (sanitize, conditional write, 409 on a lost race, broadcast)
+- `lib/request.ts` / `lib/limits.ts` — JSON bodies, input caps (shared with the browser), rate-limit helper
 - `lib/db.ts` — D1 access via `cloudflare:workers` env
 - `lib/db-types.ts` — D1 row types (separated so client code can import without runtime)
-- `lib/broadcast.ts` — DO broadcast helper called from PUT/PATCH
+- `lib/broadcast.ts` — DO broadcast helper, called from `commitContent`
+- `lib/security-headers.ts` — headers the Worker sets; `public/_headers` must match (tested)
+- `lib/docs-content.ts` — the API docs: `/docs/raw` serves it, `/docs` renders it at build time
+- `lib/faq.ts` — SEO pages render their FAQ and its JSON-LD from one list
 - `src/pages/` — Astro pages (file-based routing)
 - `src/pages/api/` — all REST API routes (Astro endpoints)
-- `src/pages/d/[id].astro` — document SSR page (dynamic OG tags from D1)
-- `src/components/DocumentView.tsx` — main editor component (React island, largest)
+- `src/pages/d/[id].astro` — document page: one D1 query, dynamic OG tags; the island renders client-side
+- `src/components/DocumentView.tsx` — document page island; sync logic in `lib/use-document-sync.ts`, header/status bar in `DocumentParts.tsx`. The editor is lazy-loaded so view-only readers never download Tiptap (tested)
 - `src/worker.ts` — custom worker entry with WebSocket bypass + DO export + cron
 - `src/layouts/Layout.astro` — HTML shell, meta tags, JSON-LD, fonts
-- `worker/document-ws.ts` — Durable Object class for WebSocket sync
+- `worker/document-ws.ts` — Durable Object: pushes server-sanitized content to open documents (clients never relay content)
 - `components/editor/` — Tiptap editor, toolbar, comments, highlights
 - `public/.assetsignore` — prevents wrangler from uploading `_worker.js` as an asset
 

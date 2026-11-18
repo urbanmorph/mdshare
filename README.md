@@ -6,6 +6,7 @@ Share markdown as a link anyone can comment on and edit, with no account. Free: 
 [![MCP](https://img.shields.io/npm/v/mdshare-mcp?label=MCP&color=indigo)](https://www.npmjs.com/package/mdshare-mcp)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.sathya--sankaran%2Fmdshare-blue)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sathya-sankaran/mdshare)
 [![Deploy](https://github.com/urbanmorph/mdshare/actions/workflows/deploy.yml/badge.svg)](https://github.com/urbanmorph/mdshare/actions/workflows/deploy.yml)
+[![Lighthouse, mobile, measured 2026-11-18: performance 96, accessibility 100, best practices 82, SEO 100](https://img.shields.io/badge/Lighthouse%20(perf%20%C2%B7%20a11y%20%C2%B7%20BP%20%C2%B7%20SEO)-96%20%C2%B7%20100%20%C2%B7%2082%20%C2%B7%20100-green?logo=lighthouse&logoColor=white)](https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fmdshare.live%2F&form_factor=mobile)
 [![GitHub last commit](https://img.shields.io/github/last-commit/urbanmorph/mdshare)](https://github.com/urbanmorph/mdshare)
 [![Runs on Cloudflare Workers](https://img.shields.io/badge/Runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare)](https://mdshare.live)
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-007ACC)](https://marketplace.visualstudio.com/items?itemName=urbanmorph.mdshare-live)

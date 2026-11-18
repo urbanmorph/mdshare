@@ -1,77 +1,46 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { faqJsonLd, type Faq } from "../../lib/faq";
 
 export const prerender = true;
 
 const title = "Convert PDF, DOCX, or web pages to markdown and share — markitdown, pandoc, Docling, Marker, Firecrawl + mdshare";
 const description = "Pipe markitdown, pandoc, Docling, Marker, Firecrawl, or Jina Reader output straight into a shareable link. PDF, DOCX, HTML, URL → markdown → mdshare.live. One command, no login.";
 
-const faqSchema = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "How do I share markitdown output online?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Pipe the markitdown output into curl against mdshare.live's POST /api/documents endpoint. The response gives you a shareable link. No login, no account, no API key. Example: markitdown report.pdf | curl -X POST -H 'Content-Type: text/markdown' --data-binary @- https://mdshare.live/api/documents"
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "How do I share pandoc output as a link?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Convert your file to markdown with pandoc, then POST it to mdshare.live's API. Example: pandoc input.docx -t gfm | curl -X POST -H 'Content-Type: text/markdown' --data-binary @- https://mdshare.live/api/documents. The response includes a share URL valid for 90 days."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Does mdshare convert PDF or DOCX?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "No — by design. Use markitdown or pandoc upstream. mdshare is the sharing layer; it accepts markdown only. This keeps the service tiny, fast, and free."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Can my AI agent do the convert-and-share in one step?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes. Install the mdshare MCP server (npx mdshare-mcp) and your agent can call upload_markdown with a file_path argument. If the file is a PDF or DOCX, run markitdown or pandoc first to produce a .md file, then point upload_markdown at that path. The agent never has to load the markdown into its context."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "What about images and other binaries?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "mdshare stores markdown text only. If your converter extracts images, they'll appear as local file references in the markdown — those won't render in the shared view. Either host the images elsewhere (GitHub, S3, Imgur) and rewrite the markdown to point at them, or strip the images before uploading."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "How long does the link last?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "90 days. Re-upload to refresh, or generate a new link from the admin URL. mdshare is built for ephemeral sharing, not archival."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Can I edit after uploading?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes — the create response includes an admin_url for editing in the browser, plus an edit_key if you want to PUT or PATCH from your script. Re-running markitdown and pushing a PATCH is a common loop for documents that change underneath you."
-      }
-    }
-  ]
-};
+const faqs: Faq[] = [
+  {
+    q: "How do I share markitdown output online?",
+    a: "Pipe markitdown's stdout into <code>curl</code> against <code>mdshare.live/api/documents</code>. The response is JSON with a <code>share_url</code> field. <a href=\"#markitdown\" class=\"text-indigo-400 hover:text-indigo-300 underline underline-offset-2\">Full one-liner above</a>.",
+  },
+  {
+    q: "How do I share pandoc output as a link?",
+    a: "Same pattern as markitdown — pipe pandoc's output into the same endpoint. GitHub-flavored markdown (<code>-t gfm</code>) round-trips most cleanly. <a href=\"#pandoc\" class=\"text-indigo-400 hover:text-indigo-300 underline underline-offset-2\">Full example above</a>.",
+  },
+  {
+    q: "Does mdshare convert PDF or DOCX?",
+    a: "No — by design. Use markitdown or pandoc upstream. mdshare is the sharing layer; it accepts markdown only. This keeps the service tiny, fast, and free.",
+  },
+  {
+    q: "Can my AI agent do the convert-and-share in one step?",
+    a: "Yes. Install <code>npx mdshare-mcp</code> once and your agent can call <code>upload_markdown</code> with a <code>file_path</code> argument — the markdown never enters the conversation context. <a href=\"#ai\" class=\"text-indigo-400 hover:text-indigo-300 underline underline-offset-2\">Full setup above</a>.",
+  },
+  {
+    q: "What about images and other binaries?",
+    a: "mdshare stores markdown text only. If your converter extracts images, they'll appear as local file references in the markdown — those won't render in the shared view. Either host the images elsewhere (GitHub, S3, Imgur) and rewrite the markdown to point at them, or strip the images before uploading.",
+  },
+  {
+    q: "How long does the link last?",
+    a: "90 days by default. From the admin link (or the MCP server's <code>set_expiry</code>) you can move the expiry to any date up to a year out. mdshare is built for sharing, not archival.",
+  },
+  {
+    q: "Can I edit after uploading?",
+    a: "Yes — the create response includes an <code>admin_url</code> for editing in the browser, plus an <code>edit_key</code> if you want to PUT or PATCH from your script. Re-running markitdown and pushing a PATCH is a common loop for documents that change underneath you.",
+  },
+];
 ---
 
 <Layout title={title} description={description} canonical="https://mdshare.live/convert-and-share-markdown">
-  <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+  <script type="application/ld+json" set:html={JSON.stringify(faqJsonLd(faqs))} />
 
   <div class="min-h-screen bg-neutral-950">
     <header class="border-b border-neutral-800 px-4 sm:px-8 py-4">
@@ -260,56 +229,12 @@ curl -X POST -H "Content-Type: text/markdown" \\
         <hr />
 
         <h2 id="faq">FAQ</h2>
-
-        <h3>How do I share markitdown output online?</h3>
-        <p>
-          Pipe markitdown's stdout into <code>curl</code> against
-          <code>mdshare.live/api/documents</code>. The response is JSON with a
-          <code>share_url</code> field.
-          <a href="#markitdown" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">Full one-liner above</a>.
-        </p>
-
-        <h3>How do I share pandoc output as a link?</h3>
-        <p>
-          Same pattern as markitdown — pipe pandoc's output into the same endpoint. GitHub-flavored
-          markdown (<code>-t gfm</code>) round-trips most cleanly.
-          <a href="#pandoc" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">Full example above</a>.
-        </p>
-
-        <h3>Does mdshare convert PDF or DOCX?</h3>
-        <p>
-          No — by design. Use markitdown or pandoc upstream. mdshare is the sharing layer; it
-          accepts markdown only. This keeps the service tiny, fast, and free.
-        </p>
-
-        <h3>Can my AI agent do the convert-and-share in one step?</h3>
-        <p>
-          Yes. Install <code>npx mdshare-mcp</code> once and your agent can call
-          <code>upload_markdown</code> with a <code>file_path</code> argument — the markdown never
-          enters the conversation context.
-          <a href="#ai" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">Full setup above</a>.
-        </p>
-
-        <h3>What about images and other binaries?</h3>
-        <p>
-          mdshare stores markdown text only. If your converter extracts images, they'll appear as
-          local file references in the markdown — those won't render in the shared view. Either
-          host the images elsewhere (GitHub, S3, Imgur) and rewrite the markdown to point at them,
-          or strip the images before uploading.
-        </p>
-
-        <h3>How long does the link last?</h3>
-        <p>
-          90 days. Re-upload to refresh, or generate a new link from the admin URL. mdshare is
-          built for ephemeral sharing, not archival.
-        </p>
-
-        <h3>Can I edit after uploading?</h3>
-        <p>
-          Yes — the create response includes an <code>admin_url</code> for editing in the browser,
-          plus an <code>edit_key</code> if you want to PUT or PATCH from your script. Re-running
-          markitdown and pushing a PATCH is a common loop for documents that change underneath you.
-        </p>
+        {faqs.map((f) => (
+          <Fragment>
+            <h3>{f.q}</h3>
+            <p set:html={f.a} />
+          </Fragment>
+        ))}
 
         <hr />
 

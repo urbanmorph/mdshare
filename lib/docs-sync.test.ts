@@ -102,3 +102,28 @@ test("the rendered /docs page ships no script and highlights code", () => {
   assert.doesNotMatch(page, /<script/i);
   assert.match(page, /<pre><code class="language-bash">[^]*?<span class="hljs-string">/);
 });
+
+// SEO pages: structured data must say what the page says (Google ignores FAQ markup that
+// doesn't match the visible text), and counts must match the code.
+const PAGES = ["about", "convert-and-share-markdown", "install-mdshare-plugin", "privacy", "share-markdown-with-ai"]
+  .map((p) => [p, read(`src/pages/${p}.astro`)] as const);
+
+test("FAQ pages build their JSON-LD from the same list they render", () => {
+  for (const [name, src] of PAGES) {
+    if (!src.includes("faqs")) continue;
+    assert.doesNotMatch(src, /"FAQPage"/, `${name}: FAQ JSON-LD is written by hand`);
+    assert.match(src, /faqJsonLd\(faqs\)/, `${name}: JSON-LD`);
+    assert.match(src, /faqs\.map\(/, `${name}: visible FAQ`);
+  }
+});
+
+test("pages that count the MCP tools give the server's count", () => {
+  for (const [name, src] of PAGES) {
+    for (const m of src.matchAll(/\b(\d+) (?:mdshare |MCP )?tools\b/g)) assert.equal(Number(m[1]), toolNames.length, `${name}: "${m[0]}"`);
+  }
+});
+
+test("the privacy page's JSON-LD dateModified is its visible 'Last updated' date", () => {
+  const src = read("src/pages/privacy.astro");
+  assert.equal(src.match(/"dateModified":\s*"([\d-]+)"/)?.[1], src.match(/Last updated ([\d-]+)/)?.[1]);
+});
