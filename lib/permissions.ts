@@ -71,11 +71,6 @@ export async function resolveAccess(
   );
 }
 
-/** Deprecated: resolveAccess(db, token, null). Kept until the routes move to lib/authorize.ts. */
-export async function resolveToken(db: D1Database, token: string): Promise<ResolvedPermission | null> {
-  return resolveAccess(db, token, null);
-}
-
 /** Whether a document's expires_at (an ISO string, or null for never) has passed. */
 export function isExpired(expiresAt: string | null | undefined, now = Date.now()): boolean {
   return !!expiresAt && Date.parse(expiresAt) < now;

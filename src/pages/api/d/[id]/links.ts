@@ -1,81 +1,77 @@
 import type { APIRoute } from "astro";
 import { nanoid } from "nanoid";
 import { getDB } from "../../../../../lib/db";
-import { resolveToken } from "../../../../../lib/permissions";
+import { authorize } from "../../../../../lib/authorize";
 import { generateToken, hashToken, tokenPrefix } from "../../../../../lib/tokens";
-import type { Permission } from "../../../../../lib/tokens";
 import { encryptToken, decryptToken } from "../../../../../lib/token-crypto";
-import { incrementStat } from "../../../../../lib/stats";
+import { insertShareLink, MAX_ACTIVE_LINKS, SHARE_PERMISSIONS } from "../../../../../lib/links";
+import type { NewLink } from "../../../../../lib/links";
+import { readJson, rateLimit, tooLong, parseFutureDate, LIMITS } from "../../../../../lib/request";
 
 export const prerender = false;
 
-const VALID_PERMISSIONS: Permission[] = ["view", "edit", "comment"];
-
 export const POST: APIRoute = async ({ request, params }) => {
+  const limited = rateLimit(request, "link-create", { max: 20, windowSec: 60 });
+  if (limited) return limited;
+
   const id = params.id!;
-  const url = new URL(request.url);
-  const key = url.searchParams.get("key");
-  if (!key) return Response.json({ error: "Not found" }, { status: 404 });
-
   const db = getDB();
-  const resolved = await resolveToken(db, key);
-  if (!resolved || resolved.documentId !== id || resolved.permission !== "admin") {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const resolved = await authorize(db, request, id, "admin");
+  if (resolved instanceof Response) return resolved;
 
-  const body = (await request.json()) as { permission: string; label?: string; expires_at?: string | null };
-  const permission = body.permission as Permission;
+  const body = await readJson<{ permission?: unknown; label?: unknown; expires_at?: unknown }>(request);
+  if (body instanceof Response) return body;
+
+  const permission = body.permission as NewLink["permission"];
+  if (!SHARE_PERMISSIONS.includes(permission)) {
+    return Response.json(
+      { error: `Invalid permission. Must be one of: ${SHARE_PERMISSIONS.join(", ")}` },
+      { status: 400 }
+    );
+  }
+  if (body.label != null && typeof body.label !== "string") {
+    return Response.json({ error: "label must be a string" }, { status: 400 });
+  }
   const label = body.label || null;
-  const expiresAt = body.expires_at || null;
+  const tooBig = tooLong([["label", label, LIMITS.label]]);
+  if (tooBig) return tooBig;
 
-  if (!VALID_PERMISSIONS.includes(permission)) {
-    return Response.json(
-      { error: `Invalid permission. Must be one of: ${VALID_PERMISSIONS.join(", ")}` },
-      { status: 400 }
-    );
-  }
-
-  const linkCount50 = await db
-    .prepare("SELECT COUNT(*) as cnt FROM links WHERE document_id = ? AND permission != 'admin'")
-    .bind(id)
-    .first<{ cnt: number }>();
-  if (linkCount50 && linkCount50.cnt >= 50) {
-    return Response.json(
-      { error: "Link limit reached. Maximum 50 share links per document." },
-      { status: 400 }
-    );
+  let expiresAt: string | null = null;
+  if (body.expires_at != null && body.expires_at !== "") {
+    const when = parseFutureDate(body.expires_at);
+    if (when.error !== undefined) return Response.json({ error: when.error }, { status: 400 });
+    expiresAt = when.iso;
   }
 
   const token = generateToken(permission);
-  const hash = await hashToken(token);
-  const prefix = tokenPrefix(token);
-  const storedToken = await encryptToken(token);
   const linkId = nanoid(16);
-
-  await db
-    .prepare(
-      `INSERT INTO links (id, document_id, token_prefix, token_hash, permission, label, token, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .bind(linkId, id, prefix, hash, permission, label, storedToken, expiresAt)
-    .run();
-
-  const linkCount = await db
-    .prepare("SELECT COUNT(*) as cnt FROM links WHERE document_id = ? AND permission != 'admin'")
-    .bind(id)
-    .first<{ cnt: number }>();
-  if (linkCount && linkCount.cnt === 1) {
-    await incrementStat(db, "documents_shared");
+  const created = await insertShareLink(db, {
+    id: linkId,
+    documentId: id,
+    prefix: tokenPrefix(token),
+    hash: await hashToken(token),
+    permission,
+    label,
+    token: await encryptToken(token),
+    expiresAt,
+  });
+  if (!created) {
+    return Response.json(
+      { error: `Link limit reached. Maximum ${MAX_ACTIVE_LINKS} active share links per document.` },
+      { status: 400 }
+    );
   }
 
   const baseUrl = new URL(request.url).origin;
 
   return Response.json(
     {
+      id: linkId,
       token,
       url: `${baseUrl}/d/${id}?key=${token}`,
       permission,
       label,
+      expires_at: expiresAt,
     },
     { status: 201 }
   );
@@ -83,15 +79,9 @@ export const POST: APIRoute = async ({ request, params }) => {
 
 export const GET: APIRoute = async ({ request, params }) => {
   const id = params.id!;
-  const url = new URL(request.url);
-  const key = url.searchParams.get("key");
-  if (!key) return Response.json({ error: "Not found" }, { status: 404 });
-
   const db = getDB();
-  const resolved = await resolveToken(db, key);
-  if (!resolved || resolved.documentId !== id || resolved.permission !== "admin") {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const resolved = await authorize(db, request, id, "admin");
+  if (resolved instanceof Response) return resolved;
 
   const baseUrl = new URL(request.url).origin;
 
