@@ -1,191 +1,117 @@
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
+import { apiUrl } from "./api-url.ts";
 
 export type WSStatus = "connecting" | "live" | "reconnecting";
 
 interface UseDocumentWSOptions {
   documentId: string;
   tokenKey: string;
+  /** Content saved by someone else, as the server broadcast it after a PUT or PATCH. */
   onContentUpdate: (content: string, contentHash: string) => void;
-  /**
-   * Called each time the socket re-opens after a drop (never on the first
-   * connect). Use it to fetch once and catch up on anything missed while
-   * disconnected — the Durable Object is a pure relay with no replay, so a
-   * broadcast that fired while we were away is gone otherwise.
-   */
-  onReconnect?: () => void;
-  enabled: boolean;
 }
 
 interface UseDocumentWSReturn {
-  broadcastUpdate: (content: string, contentHash: string) => void;
-  presenceCount: number;
-  connected: boolean;
   status: WSStatus;
+  /**
+   * How many times the socket has re-opened after a drop. The Durable Object keeps no
+   * history, so a broadcast sent while disconnected is lost: catch up when this changes.
+   */
+  reconnects: number;
 }
 
 // Ping cadence. If a pong doesn't come back within the timeout, the socket is
 // silently dead (laptop sleep/wake, Wi-Fi→cellular, an idle proxy/edge drop)
-// and we force a close to trigger a reconnect. Without this, `connected` stays
-// true forever on a half-open socket and updates quietly stop arriving.
+// and we force a close to trigger a reconnect. Without this, the status stays
+// "live" forever on a half-open socket and updates quietly stop arriving.
 const HEARTBEAT_INTERVAL_MS = 25000;
 const PONG_TIMEOUT_MS = 10000;
 const RECONNECT_DELAY_MS = 3000;
 
 /**
- * WebSocket hook for real-time document updates.
- *
- * The socket is the only steady-state content path. A heartbeat detects dead
- * sockets and a reconnect callback lets the caller resync on recovery, so we
- * don't need a permanent background content poll to stay correct.
+ * Receives live document updates. The socket only listens: saves go through the REST API,
+ * which broadcasts the sanitized content to every socket. A heartbeat detects dead sockets
+ * and `reconnects` lets the caller resync on recovery.
  */
-export function useDocumentWS({
-  documentId,
-  tokenKey,
-  onContentUpdate,
-  onReconnect,
-  enabled,
-}: UseDocumentWSOptions): UseDocumentWSReturn {
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pongTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasConnectedRef = useRef(false);
-  const [presenceCount, setPresenceCount] = useState(0);
-  const [connected, setConnected] = useState(false);
+export function useDocumentWS({ documentId, tokenKey, onContentUpdate }: UseDocumentWSOptions): UseDocumentWSReturn {
   const [status, setStatus] = useState<WSStatus>("connecting");
-  const onContentUpdateRef = useRef(onContentUpdate);
-  onContentUpdateRef.current = onContentUpdate;
-  const onReconnectRef = useRef(onReconnect);
-  onReconnectRef.current = onReconnect;
+  const [reconnects, setReconnects] = useState(0);
+  const onUpdate = useEffectEvent((content: string, contentHash: string) => onContentUpdate(content, contentHash));
 
-  const clearTimers = useCallback(() => {
-    if (heartbeatRef.current) {
-      clearInterval(heartbeatRef.current);
-      heartbeatRef.current = null;
-    }
-    if (pongTimeoutRef.current) {
-      clearTimeout(pongTimeoutRef.current);
-      pongTimeoutRef.current = null;
-    }
-  }, []);
+  useEffect(() => {
+    // Set on unmount: the close() below must not schedule another connection.
+    let disposed = false;
+    let ws: WebSocket | null = null;
+    let opened = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let heartbeat: ReturnType<typeof setInterval> | undefined;
+    let pongTimer: ReturnType<typeof setTimeout> | undefined;
+    const stopHeartbeat = () => {
+      clearInterval(heartbeat);
+      clearTimeout(pongTimer);
+    };
 
-  const connect = useCallback(() => {
-    if (!enabled) return;
+    const connect = () => {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      try {
+        ws = new WebSocket(apiUrl(`${protocol}//${window.location.host}/api/ws/${documentId}`, tokenKey));
+      } catch {
+        setStatus("reconnecting"); // WebSocket unavailable; the caller's poll carries on
+        return;
+      }
+      const socket = ws;
 
-    // Build WebSocket URL
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/api/ws/${documentId}?key=${tokenKey}`;
-
-    try {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setConnected(true);
+      socket.onopen = () => {
         setStatus("live");
-
-        // Start the heartbeat.
-        clearTimers();
-        heartbeatRef.current = setInterval(() => {
-          if (ws.readyState !== WebSocket.OPEN) return;
+        stopHeartbeat();
+        heartbeat = setInterval(() => {
+          if (socket.readyState !== WebSocket.OPEN) return;
           try {
-            ws.send(JSON.stringify({ type: "ping" }));
+            socket.send(JSON.stringify({ type: "ping" }));
           } catch {
             return;
           }
-          if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-          pongTimeoutRef.current = setTimeout(() => {
-            // No pong in time — the socket is dead. Closing triggers onclose,
-            // which schedules the reconnect.
-            try {
-              ws.close();
-            } catch {
-              /* already closing */
-            }
-          }, PONG_TIMEOUT_MS);
+          clearTimeout(pongTimer);
+          // No pong in time: the socket is dead. Closing triggers onclose, which reconnects.
+          pongTimer = setTimeout(() => socket.close(), PONG_TIMEOUT_MS);
         }, HEARTBEAT_INTERVAL_MS);
-
-        // Resync after a recovery, but not on the first-ever connect — the page
-        // loaded with fresh SSR content and the caller's initial poll already ran.
-        if (hasConnectedRef.current) {
-          onReconnectRef.current?.();
-        } else {
-          hasConnectedRef.current = true;
-        }
+        // Resync after a recovery, but not on the first connect: the page has fresh content.
+        if (opened) setReconnects((n) => n + 1);
+        opened = true;
       };
 
-      ws.onmessage = (event) => {
+      socket.onmessage = (event) => {
+        let data: { type?: string; content?: string; content_hash?: string };
         try {
-          const data = JSON.parse(event.data);
-
-          if (data.type === "pong") {
-            if (pongTimeoutRef.current) {
-              clearTimeout(pongTimeoutRef.current);
-              pongTimeoutRef.current = null;
-            }
-          }
-
-          if (data.type === "update") {
-            onContentUpdateRef.current(data.content, data.content_hash);
-          }
-
-          if (data.type === "presence") {
-            setPresenceCount(data.count);
-          }
+          data = JSON.parse(event.data);
         } catch {
-          // Ignore invalid messages
+          return; // not JSON
+        }
+        if (data.type === "pong") clearTimeout(pongTimer);
+        else if (data.type === "update" && typeof data.content === "string" && typeof data.content_hash === "string") {
+          onUpdate(data.content, data.content_hash);
         }
       };
 
-      ws.onclose = () => {
-        setConnected(false);
+      socket.onclose = () => {
+        stopHeartbeat();
+        ws = null;
+        if (disposed) return;
         setStatus("reconnecting");
-        clearTimers();
-        wsRef.current = null;
-        // Reconnect after a short delay
-        reconnectTimeoutRef.current = setTimeout(connect, RECONNECT_DELAY_MS);
+        reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
       };
 
-      ws.onerror = () => {
-        ws.close();
-      };
-    } catch {
-      // WebSocket not available (e.g., local dev without DO support)
-      setConnected(false);
-      setStatus("reconnecting");
-    }
-  }, [documentId, tokenKey, enabled, clearTimers]);
-
-  useEffect(() => {
-    connect();
-
-    return () => {
-      clearTimers();
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
+      socket.onerror = () => socket.close();
     };
-  }, [connect, clearTimers]);
 
-  const broadcastUpdate = useCallback(
-    (content: string, contentHash: string) => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(
-          JSON.stringify({
-            type: "update",
-            content,
-            content_hash: contentHash,
-          })
-        );
-      }
-    },
-    []
-  );
+    connect();
+    return () => {
+      disposed = true;
+      stopHeartbeat();
+      clearTimeout(reconnectTimer);
+      ws?.close();
+    };
+  }, [documentId, tokenKey]);
 
-  return { broadcastUpdate, presenceCount, connected, status };
+  return { status, reconnects };
 }

@@ -1,127 +1,98 @@
-import { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from "react";
-import type { Comment } from "../../components/editor/comment-sidebar";
-import { DownloadButton } from "../../components/ui/download-button";
+import { useState, useCallback, useEffect, useEffectEvent, useMemo, lazy, Suspense } from "react";
 import { Spinner } from "../../components/ui/spinner";
+import { MarkdownViewer } from "../../components/editor/markdown-viewer";
+import type { DocumentRow } from "../../lib/db-types";
+import type { Permission } from "../../lib/tokens";
+import type { CommentAnchor } from "../../components/editor/comment-highlight";
+import { useDocumentSync } from "../../lib/use-document-sync";
+import { useDisplayName } from "../../lib/use-display-name";
+import { saveRecentDoc } from "../../lib/recent-docs";
+import { syncRecentSoon } from "../../lib/recent-sync";
+import { useUnreadCount, seedLastSeenIfMissing, pruneLastSeen } from "../../lib/lastseen";
+import { safeGet, safeSet, safeRemove } from "../../lib/storage";
+import { downloadMarkdown } from "../../lib/download-markdown";
+import { DocumentHeader, NewDocBanner, ConflictBanner, StatusBar, type Panel } from "./DocumentParts";
 
 // The editor is most of the page's JavaScript; view-only readers never download it.
 const TiptapEditor = lazy(() => import("../../components/editor/tiptap-editor").then(m => ({ default: m.TiptapEditor })));
 const CommentSidebar = lazy(() => import("../../components/editor/comment-sidebar").then(m => ({ default: m.CommentSidebar })));
 const LinkManager = lazy(() => import("../../components/ui/link-manager").then(m => ({ default: m.LinkManager })));
-import { MarkdownViewer } from "../../components/editor/markdown-viewer";
-import type { DocumentRow } from "../../lib/db-types";
-import type { Permission } from "../../lib/tokens";
-import type { CommentAnchor } from "../../components/editor/comment-highlight";
-import { useDocumentWS } from "../../lib/use-document-ws";
-import { useDisplayName } from "../../lib/use-display-name";
-import { saveRecentDoc } from "../../lib/recent-docs";
-import { syncRecentSoon } from "../../lib/recent-sync";
-import { useUnreadCount, seedLastSeenIfMissing, pruneLastSeen } from "../../lib/lastseen";
 
 interface DocumentViewProps {
   document: DocumentRow;
   permission: Permission;
   tokenKey: string;
+  /** Unused: the comment bubble is always on. Still passed by src/pages/d/[id].astro. */
   enableCommentBubble?: boolean;
 }
 
-const PERMISSION_LABELS: Record<Permission, string> = {
-  admin: "Admin",
-  edit: "Editing",
-  comment: "Commenting",
-  view: "View only",
-};
+/** Whether this page was opened from "create", which adds ?new=1 to the admin link. */
+const isNewDocUrl = () => new URLSearchParams(window.location.search).get("new") === "1";
 
-const BADGE_COLORS: Record<Permission, string> = {
-  admin: "bg-purple-600",
-  edit: "bg-blue-600",
-  comment: "bg-amber-600",
-  view: "bg-neutral-600",
-};
+/** Light or dark editor, remembered in this browser. */
+function useLightEditor() {
+  const [light, setLight] = useState(() => safeGet("editorLight") === "true");
+  useEffect(() => safeSet("editorLight", String(light)), [light]);
+  const toggle = useCallback(() => setLight((v) => !v), []);
+  return [light, toggle] as const;
+}
 
-type Panel = "comments" | "links";
+export function DocumentView({ document: doc, permission, tokenKey }: DocumentViewProps) {
+  const editable = permission === "admin" || permission === "edit";
+  // Commenters and editors get the Tiptap editor; view-only readers get the plain viewer.
+  const canComment = editable || permission === "comment";
+  const { name: displayName, setName: setDisplayName } = useDisplayName();
+  const [lightEditor, toggleLightEditor] = useLightEditor();
 
-export function DocumentView({
-  document: doc,
-  permission,
-  tokenKey,
-  enableCommentBubble,
-}: DocumentViewProps) {
-  const [saveStatus, setSaveStatus] = useState<string>("Ready");
-  const canComment = permission === "admin" || permission === "edit" || permission === "comment";
   const [openPanel, setOpenPanel] = useState<Panel | null>(() => {
-    if (typeof window === "undefined") return null;
-    const saved = localStorage.getItem("openPanel");
+    if (isNewDocUrl() && permission === "admin") return "links";
+    const saved = safeGet("openPanel");
     if (saved === "links" && permission === "admin") return "links";
     if (saved === "comments" && canComment) return "comments";
     return null;
   });
   useEffect(() => {
-    if (openPanel) localStorage.setItem("openPanel", openPanel);
-    else localStorage.removeItem("openPanel");
+    if (openPanel) safeSet("openPanel", openPanel);
+    else safeRemove("openPanel");
   }, [openPanel]);
-  const [pendingAnchor, setPendingAnchor] = useState<{
-    text: string;
-    start: number;
-    end: number;
-  } | null>(null);
-  const handleRequestComment = useCallback(
-    (text: string, anchorStart: number, anchorEnd: number) => {
-      setPendingAnchor({ text, start: anchorStart, end: anchorEnd });
-      setOpenPanel("comments");
-    },
-    []
-  );
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
-  const [liveContent, setLiveContent] = useState(doc.content);
-  const currentTitle = useMemo(() => {
-    const m = liveContent.match(/^#\s+(.+)$/m);
-    return (m ? m[1].trim() : doc.title) || "Untitled";
-  }, [liveContent, doc.title]);
-  const [lightEditor, setLightEditor] = useState(false);
-  useEffect(() => {
-    const saved = localStorage.getItem("editorLight");
-    if (saved === "true") setLightEditor(true);
-  }, []);
-  // lastContentHash is the version this tab's editor actually shows. It is sent as
-  // the base of every save, so it must only move forward once content is applied.
-  const [lastContentHash, setLastContentHash] = useState(doc.content_hash);
-  const isSavingRef = useRef(false);
-  // Content from elsewhere is numbered; the editor reports which number it shows.
-  const [contentRevision, setContentRevision] = useState(0);
-  const remoteRef = useRef({ revision: 0, hash: doc.content_hash });
-  // The user's edit that a newer version overtook, kept so it is not lost.
-  const [conflictDraft, setConflictDraft] = useState<string | null>(null);
-  const lastContentHashRef = useRef(lastContentHash);
-  lastContentHashRef.current = lastContentHash;
-  const { name: displayName, setName: setDisplayName } = useDisplayName();
-  const editable = permission === "admin" || permission === "edit";
-
   const togglePanel = useCallback((panel: Panel) => {
     setOpenPanel((prev) => (prev === panel ? null : panel));
   }, []);
 
+  const [showNewBanner, setShowNewBanner] = useState(isNewDocUrl);
+  // Drop ?new=1 so a reload or a bookmark doesn't show the banner again.
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "j") {
-        e.preventDefault();
-        setLightEditor((v) => {
-          localStorage.setItem("editorLight", String(!v));
-          return !v;
-        });
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("new")) return;
+    url.searchParams.delete("new");
+    window.history.replaceState(window.history.state, "", url);
   }, []);
 
+  const [pendingAnchor, setPendingAnchor] = useState<{ text: string; start: number; end: number } | null>(null);
+  const handleRequestComment = useCallback((text: string, start: number, end: number) => {
+    setPendingAnchor({ text, start, end });
+    setOpenPanel("comments");
+  }, []);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+
+  const sync = useDocumentSync({
+    documentId: doc.id,
+    tokenKey,
+    initialContent: doc.content,
+    initialHash: doc.content_hash,
+    usesEditor: canComment,
+    displayName,
+  });
+  const { liveContent, comments } = sync;
+
+  const currentTitle = useMemo(() => {
+    const m = liveContent.match(/^#\s+(.+)$/m);
+    return (m ? m[1].trim() : doc.title) || "Untitled";
+  }, [liveContent, doc.title]);
+  const wordCount = useMemo(() => liveContent.split(/\s+/).filter(Boolean).length, [liveContent]);
+
   useEffect(() => {
-    saveRecentDoc({
-      id: doc.id,
-      title: currentTitle,
-      key: tokenKey,
-      permission,
-    });
+    saveRecentDoc({ id: doc.id, title: currentTitle, key: tokenKey, permission });
   }, [doc.id, currentTitle, tokenKey, permission]);
 
   // Once per document opened (not per title keystroke): send the visit to the
@@ -145,7 +116,6 @@ export function DocumentView({
   // Re-fires whenever new comments arrive while watching.
   useEffect(() => {
     if (openPanel !== "comments") return;
-    if (typeof document === "undefined") return;
     const advanceIfVisible = () => {
       if (document.visibilityState === "visible") markSeen();
     };
@@ -153,135 +123,6 @@ export function DocumentView({
     document.addEventListener("visibilitychange", advanceIfVisible);
     return () => document.removeEventListener("visibilitychange", advanceIfVisible);
   }, [openPanel, comments, markSeen]);
-
-  const [viewers, setViewers] = useState<{ name: string }[]>([]);
-  const sessionIdRef = useRef(Math.random().toString(36).slice(2));
-
-  const [showNewBanner, setShowNewBanner] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("new") === "1") {
-      setShowNewBanner(true);
-      url.searchParams.delete("new");
-      window.history.replaceState({}, "", url.toString());
-      if (permission === "admin") setOpenPanel("links");
-    }
-  }, [permission]);
-
-  const flashTabTitle = useCallback(() => {
-    const original = document.title;
-    document.title = "Updated — " + original.replace("Updated — ", "");
-    setTimeout(() => { document.title = original; }, 3000);
-  }, []);
-
-  // WebSocket owns content in steady state. The 15s poll keeps comments and the
-  // viewer list fresh; it only pulls content when the socket is down or when a
-  // reconnect asks it to catch up (forceContentSyncRef) — not as a standing backup.
-  const usesEditor = editable || permission === "comment";
-  const applyRemote = useCallback((content: string, contentHash: string) => {
-    const revision = remoteRef.current.revision + 1;
-    remoteRef.current = { revision, hash: contentHash };
-    setLiveContent(content);
-    setContentRevision(revision);
-    // The read-only viewer always renders the latest content directly.
-    if (!usesEditor) setLastContentHash(contentHash);
-  }, [usesEditor]);
-  const handleContentApplied = useCallback((revision: number) => {
-    if (revision === remoteRef.current.revision) setLastContentHash(remoteRef.current.hash);
-  }, []);
-
-  const handleWSUpdate = useCallback((content: string, contentHash: string) => {
-    // Our own save echoed back, or an update racing our in-flight save. If it was
-    // someone else's, our base hash is now stale and the next save gets a 409, so
-    // nothing is overwritten.
-    if (isSavingRef.current || contentHash === lastContentHashRef.current) return;
-    applyRemote(content, contentHash);
-    setSaveStatus("Updated");
-    flashTabTitle();
-    setTimeout(() => setSaveStatus("Ready"), 2000);
-  }, [applyRemote, flashTabTitle]);
-
-  // One-shot content resync after the socket recovers. pollRef is filled in once
-  // poll() is defined below (poll is declared after this hook call).
-  const forceContentSyncRef = useRef(false);
-  const pollRef = useRef<() => void>(() => {});
-  const handleReconnect = useCallback(() => {
-    forceContentSyncRef.current = true;
-    pollRef.current();
-  }, []);
-
-  const { broadcastUpdate, connected: wsConnected, status: wsStatus } = useDocumentWS({
-    documentId: doc.id,
-    tokenKey,
-    onContentUpdate: handleWSUpdate,
-    onReconnect: handleReconnect,
-    enabled: true,
-  });
-
-  // Use refs for values that change often to avoid recreating the poll callback
-  const displayNameRef = useRef(displayName);
-  displayNameRef.current = displayName;
-  const wsConnectedRef = useRef(wsConnected);
-  wsConnectedRef.current = wsConnected;
-
-  const poll = useCallback(async () => {
-    if (isSavingRef.current) return;
-    // Pull content only when the socket can't (down) or a reconnect asked us to
-    // catch up. While the socket is live, content rides the WS and the poll just
-    // refreshes comments/viewers.
-    const wantContent = !wsConnectedRef.current || forceContentSyncRef.current;
-    try {
-      const res = await fetch(`/api/d/${doc.id}/poll?key=${tokenKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session_id: sessionIdRef.current,
-          name: displayNameRef.current,
-          content_hash: wantContent ? lastContentHashRef.current : undefined,
-        }),
-      });
-      if (!res.ok) return; // leave the catch-up flag set; the next tick retries
-      // Got a good response — the resync (if any) has been served.
-      forceContentSyncRef.current = false;
-      const data = (await res.json()) as {
-        content_hash: string;
-        content?: string;
-        comments: Comment[];
-        viewers: { name: string }[];
-      };
-
-      setViewers(data.viewers);
-      setComments(data.comments);
-
-      if (wantContent && data.content && data.content_hash !== lastContentHashRef.current) {
-        applyRemote(data.content, data.content_hash);
-        setSaveStatus("Updated");
-        flashTabTitle();
-        setTimeout(() => setSaveStatus("Ready"), 2000);
-      }
-    } catch {
-      // Polling failures are recoverable; the next tick will retry.
-    }
-  }, [doc.id, tokenKey, flashTabTitle, applyRemote]);
-  pollRef.current = poll;
-
-  useEffect(() => {
-    poll();
-    const interval = setInterval(() => {
-      if (!document.hidden) poll();
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [poll]);
-
-  // Immediate refetch after posting a comment (don't wait for next poll)
-  const fetchComments = useCallback(async () => {
-    const res = await fetch(`/api/d/${doc.id}/comments?key=${tokenKey}`);
-    if (res.ok) {
-      const data = (await res.json()) as { comments: Comment[] };
-      setComments(data.comments);
-    }
-  }, [doc.id, tokenKey]);
 
   const commentAnchors: CommentAnchor[] = useMemo(
     () =>
@@ -296,260 +137,62 @@ export function DocumentView({
     [comments]
   );
 
-  // Selection tracking for comment anchoring is handled by the BubbleMenu
-  // in tiptap-editor.tsx. The legacy mouseup/touchend tracker that used to
-  // live here was removed in Phase 3 — it was broken on iOS (see commit
-  // history for the diagnosis) and the bubble is the single primary path.
-
-  // Keyboard shortcuts
+  // Page shortcuts. Cmd+S and Cmd+K belong to the editor.
+  const onShortcut = useEffectEvent((e: KeyboardEvent) => {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    const key = e.key.toLowerCase();
+    if (e.shiftKey && key === "j") {
+      e.preventDefault();
+      toggleLightEditor();
+    } else if (key === "\\") {
+      e.preventDefault();
+      if (canComment) togglePanel("comments");
+    } else if (key === "l" && permission === "admin") {
+      e.preventDefault();
+      togglePanel("links");
+    } else if (key === "d") {
+      e.preventDefault();
+      downloadMarkdown(liveContent, currentTitle);
+    }
+  });
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
-
-      switch (e.key) {
-        case "s":
-          // Save — trigger the editor's debounced save immediately
-          e.preventDefault();
-          break;
-        case "\\":
-          // Toggle comments panel
-          e.preventDefault();
-          if (canComment) togglePanel("comments");
-          break;
-        case "l":
-          // Toggle links panel (admin only)
-          if (permission === "admin") {
-            e.preventDefault();
-            togglePanel("links");
-          }
-          break;
-        case "d":
-          // Download
-          e.preventDefault();
-          document.querySelector<HTMLButtonElement>("[title='Download .md']")?.click();
-          break;
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canComment, permission, togglePanel]);
-
-  const handleUpdate = useCallback(
-    async (markdown: string) => {
-      setLiveContent(markdown);
-      setSaveStatus("Saving...");
-      isSavingRef.current = true;
-      try {
-        const res = await fetch(`/api/d/${doc.id}?key=${tokenKey}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "text/markdown",
-            "X-Edited-Via": "browser",
-            "X-Author": displayName,
-            // The version this edit was made on. A newer version on the server
-            // means this tab missed it; the server answers 409 instead of overwriting.
-            "X-Base-Hash": lastContentHashRef.current,
-          },
-          body: markdown,
-        });
-        if (res.status === 409) {
-          const latest = (await res.json()) as { content: string; content_hash: string };
-          setConflictDraft(markdown);
-          applyRemote(latest.content, latest.content_hash);
-          setSaveStatus("Not saved: newer version loaded");
-          return;
-        }
-        if (res.ok) {
-          const data = (await res.json()) as { status: string; content_hash?: string };
-          if (data.content_hash) {
-            setLastContentHash(data.content_hash);
-            // Broadcast to other clients via WebSocket
-            broadcastUpdate(markdown, data.content_hash);
-          }
-          setSaveStatus(data.status === "unchanged" ? "No changes" : "Saved");
-          setTimeout(() => setSaveStatus("Ready"), 2000);
-        } else {
-          setSaveStatus("Save failed");
-        }
-      } catch {
-        setSaveStatus("Save failed");
-      } finally {
-        isSavingRef.current = false;
-      }
-    },
-    [doc.id, tokenKey, broadcastUpdate, displayName, applyRemote]
-  );
+    const handler = (e: KeyboardEvent) => onShortcut(e);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   return (
     <div className="flex flex-col h-dvh">
-      {/* Top navigation */}
-      <header className="flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3 border-b border-neutral-800 bg-neutral-950 gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <a href="/" className="text-base font-bold text-white shrink-0">
-            md<span className="text-indigo-400">share</span>
-          </a>
-          <span className="text-neutral-700 hidden sm:inline">/</span>
-          <span className="text-sm text-neutral-300 truncate hidden sm:inline">
-            {currentTitle}
-          </span>
-          {viewers.length > 0 && (
-            <span className="hidden sm:flex items-center gap-1.5 text-[11px] text-green-400 shrink-0" title={viewers.map(v => v.name).join(", ")}>
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              {viewers.length === 1
-                ? viewers[0].name
-                : `${viewers.length} online`}
-            </span>
-          )}
-          <span
-            className={`text-[10px] px-2 py-0.5 rounded uppercase font-semibold text-white shrink-0 ${BADGE_COLORS[permission]}`}
-          >
-            {PERMISSION_LABELS[permission]}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Panel toggle buttons */}
-          {canComment && (
-            <button
-              onClick={() => togglePanel("comments")}
-              className={`relative p-2 sm:px-3 sm:py-1.5 rounded-lg text-xs transition-colors ${
-                openPanel === "comments"
-                  ? "bg-indigo-600 text-white"
-                  : "bg-neutral-800 hover:bg-neutral-700 text-neutral-400"
-              }`}
-              title="Toggle comments"
-            >
-              <svg className="w-4 h-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-              </svg>
-              <span className="hidden sm:inline">Comments</span>
-              {comments.length > 0 && (
-                <span
-                  className={`absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold ${
-                    unreadCount > 0
-                      ? "bg-amber-500 text-white"
-                      : openPanel === "comments"
-                        ? "bg-white text-indigo-600"
-                        : "bg-indigo-600 text-white"
-                  }`}
-                  title={unreadCount > 0 ? `${unreadCount} new since you last looked` : undefined}
-                >
-                  {unreadCount > 0 ? unreadCount : comments.length}
-                </span>
-              )}
-            </button>
-          )}
-          {permission === "admin" && (
-            <button
-              onClick={() => togglePanel("links")}
-              className={`p-2 sm:px-3 sm:py-1.5 rounded-lg text-xs transition-colors ${
-                openPanel === "links"
-                  ? "bg-indigo-600 text-white"
-                  : "bg-neutral-800 hover:bg-neutral-700 text-neutral-400"
-              }`}
-              title="Toggle share links"
-            >
-              <svg className="w-4 h-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-              <span className="hidden sm:inline">Links</span>
-            </button>
-          )}
-          <DownloadButton
-            documentId={doc.id}
-            tokenKey={tokenKey}
-            title={currentTitle}
-          />
-          <a
-            href="/about"
-            className="p-2.5 rounded-lg text-neutral-400 hover:text-neutral-300 hover:bg-neutral-800 transition-colors touch-manipulation"
-            title="About mdshare"
-            aria-label="About mdshare"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </a>
-        </div>
-      </header>
+      <DocumentHeader
+        title={currentTitle}
+        content={liveContent}
+        permission={permission}
+        canComment={canComment}
+        viewers={sync.viewers}
+        commentCount={comments.length}
+        unreadCount={unreadCount}
+        openPanel={openPanel}
+        onTogglePanel={togglePanel}
+      />
 
-      {showNewBanner && (
-        <div className="flex items-start gap-3 px-3 sm:px-5 py-2.5 bg-indigo-950/40 border-b border-indigo-900/60 text-xs sm:text-sm text-indigo-100">
-          <svg className="w-4 h-4 mt-0.5 shrink-0 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
-          </svg>
-          <div className="flex-1 leading-relaxed">
-            <span className="font-semibold">This page is your admin link — bookmark it.</span>{" "}
-            <span className="text-indigo-200/80">
-              Edit the <span className="font-mono">Untitled</span> heading below to rename. Your admin key for AI tools like Claude and Cursor is in the Share links panel.
-            </span>
-          </div>
-          <button
-            onClick={() => setShowNewBanner(false)}
-            aria-label="Dismiss"
-            className="shrink-0 text-indigo-300 hover:text-white transition-colors px-1"
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      {conflictDraft !== null && (
-        <div role="alert" className="flex flex-col gap-2 px-3 sm:px-5 py-2.5 bg-amber-950/40 border-b border-amber-900/60 text-xs sm:text-sm text-amber-100">
-          <div className="flex items-start gap-3">
-            <div className="flex-1 leading-relaxed">
-              <span className="font-semibold">This note changed while you were editing.</span>{" "}
-              <span className="text-amber-200/80">
-                The newer version is now loaded. Your last edit was not saved, so it is kept below. Copy what you need back into the note.
-              </span>
-            </div>
-            <button
-              onClick={() => { navigator.clipboard?.writeText(conflictDraft).catch(() => {}); }}
-              className="shrink-0 px-2 py-1 rounded bg-amber-800/60 hover:bg-amber-700/60 text-amber-50 transition-colors"
-            >
-              Copy my edit
-            </button>
-            <button
-              onClick={() => setConflictDraft(null)}
-              aria-label="Dismiss"
-              className="shrink-0 text-amber-300 hover:text-white transition-colors px-1"
-            >
-              ×
-            </button>
-          </div>
-          <textarea
-            readOnly
-            value={conflictDraft}
-            aria-label="Your unsaved edit"
-            className="w-full h-28 p-2 rounded bg-neutral-950 border border-amber-900/60 text-neutral-200 font-mono text-xs"
-          />
-        </div>
-      )}
+      {showNewBanner && <NewDocBanner onDismiss={() => setShowNewBanner(false)} />}
+      {sync.conflictDraft !== null && <ConflictBanner draft={sync.conflictDraft} onDismiss={sync.dismissConflict} />}
 
       {/* Mobile title bar */}
       <div className="sm:hidden px-3 py-1.5 border-b border-neutral-800 bg-neutral-950">
-        <span className="text-xs text-neutral-400 truncate block">
-          {currentTitle}
-        </span>
+        <span className="text-xs text-neutral-400 truncate block">{currentTitle}</span>
       </div>
 
       {/* Read-only bar */}
       {!editable && (
         <div className="flex items-center justify-between px-3 sm:px-5 py-2 bg-neutral-950 border-b border-neutral-800 text-xs text-neutral-400">
-          <span>
-            {permission === "comment"
-              ? "Read-only · Select text then add a comment"
-              : "View only"}
-          </span>
+          <span>{permission === "comment" ? "Read-only · Select text then add a comment" : "View only"}</span>
           <button
-            onClick={() => setLightEditor((v) => {
-              localStorage.setItem("editorLight", String(!v));
-              return !v;
-            })}
+            onClick={toggleLightEditor}
             className="px-2 py-1 rounded text-neutral-400 hover:bg-neutral-800 transition-colors"
             title={lightEditor ? "Switch to dark" : "Switch to light"}
           >
-            {lightEditor ? "\u263E" : "\u2600"}
+            {lightEditor ? "☾" : "☀"}
           </button>
         </div>
       )}
@@ -558,76 +201,33 @@ export function DocumentView({
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {/* Editor — always rendered, flex-1 */}
         <div className={`flex flex-col flex-1 min-h-0 min-w-0 editor-area${lightEditor ? " editor-light" : ""}`}>
-          {editable || permission === "comment" ? (
+          {canComment ? (
             // The text shows at once in the viewer while the editor loads.
             <Suspense fallback={<MarkdownViewer content={liveContent} />}>
               <TiptapEditor
                 content={liveContent}
-                contentRevision={contentRevision}
-                onContentApplied={handleContentApplied}
+                contentRevision={sync.contentRevision}
+                onContentApplied={sync.handleContentApplied}
                 editable={editable}
-                onUpdate={editable ? handleUpdate : undefined}
+                onUpdate={editable ? sync.save : undefined}
                 commentAnchors={commentAnchors}
                 activeCommentId={activeCommentId}
                 lightMode={lightEditor}
-                onToggleLight={() => setLightEditor((v) => {
-                  localStorage.setItem("editorLight", String(!v));
-                  return !v;
-                })}
+                onToggleLight={toggleLightEditor}
                 isAdmin={permission === "admin"}
-                canComment={canComment}
-                onRequestComment={enableCommentBubble && canComment ? handleRequestComment : undefined}
+                onRequestComment={handleRequestComment}
               />
             </Suspense>
           ) : (
             <MarkdownViewer content={liveContent} />
           )}
-          {/* Status bar */}
-          <div className="flex items-center justify-between px-3 sm:px-5 py-1.5 border-t border-neutral-800 text-xs text-neutral-300 bg-neutral-950 gap-2">
-            <span className="flex items-center gap-3 shrink-0">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className={`inline-block w-1.5 h-1.5 rounded-full ${
-                    saveStatus === "Saved" || saveStatus === "Ready"
-                      ? "bg-green-400"
-                      : saveStatus === "Saving..." || saveStatus === "Updated"
-                      ? "bg-yellow-400"
-                      : "bg-red-400"
-                  }`}
-                />
-                {saveStatus}
-              </span>
-              {wsStatus === "live" ? (
-                <span
-                  className="hidden sm:flex items-center gap-1 text-neutral-400"
-                  title="Live — receiving updates in real time"
-                >
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400" />
-                  Live
-                </span>
-              ) : wsStatus === "connecting" ? (
-                <span
-                  className="hidden sm:flex items-center gap-1 text-neutral-400"
-                  title="Connecting to live updates…"
-                >
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-neutral-500 animate-pulse" />
-                  Connecting…
-                </span>
-              ) : (
-                <span
-                  className="flex items-center gap-1 text-amber-400"
-                  title="Connection lost — reconnecting. Live updates are paused; the page will catch up automatically."
-                >
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  Reconnecting…
-                </span>
-              )}
-            </span>
-            <span className="hidden sm:inline text-neutral-400">
-              {doc.content.split(/\s+/).filter(Boolean).length} words
-            </span>
-            <DisplayNameEditor name={displayName} onChangeName={setDisplayName} />
-          </div>
+          <StatusBar
+            saveStatus={sync.saveStatus}
+            wsStatus={sync.wsStatus}
+            wordCount={wordCount}
+            displayName={displayName}
+            onChangeName={setDisplayName}
+          />
         </div>
 
         {/* Slide-over panel (comments or links) */}
@@ -675,11 +275,11 @@ export function DocumentView({
                   documentId={doc.id}
                   tokenKey={tokenKey}
                   canComment={canComment}
-                  canResolve={permission === "admin" || permission === "edit"}
+                  canResolve={editable}
                   pendingAnchor={pendingAnchor}
                   onClearSelection={() => setPendingAnchor(null)}
                   comments={comments}
-                  onCommentsChange={fetchComments}
+                  onCommentsChange={sync.refreshComments}
                   activeCommentId={activeCommentId}
                   onActiveCommentChange={setActiveCommentId}
                   displayName={displayName}
@@ -698,57 +298,5 @@ export function DocumentView({
         </div>
       </div>
     </div>
-  );
-}
-
-function DisplayNameEditor({
-  name,
-  onChangeName,
-}: {
-  name: string;
-  onChangeName: (name: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(name);
-
-  if (editing) {
-    return (
-      <span className="flex items-center gap-1 shrink-0">
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              onChangeName(draft);
-              setEditing(false);
-            }
-            if (e.key === "Escape") {
-              setDraft(name);
-              setEditing(false);
-            }
-          }}
-          onBlur={() => {
-            onChangeName(draft);
-            setEditing(false);
-          }}
-          className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-xs text-white w-28 sm:w-32 focus:outline-none focus:border-indigo-500 touch-manipulation"
-          placeholder="Your name"
-        />
-      </span>
-    );
-  }
-
-  return (
-    <button
-      onClick={() => {
-        setDraft(name);
-        setEditing(true);
-      }}
-      className="shrink-0 text-indigo-400 hover:text-indigo-300 transition-colors truncate max-w-[120px] sm:max-w-[150px] text-xs"
-      title="Click to change your display name"
-    >
-      {name === "Anonymous" ? "Set name" : name}
-    </button>
   );
 }
