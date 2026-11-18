@@ -35,11 +35,13 @@ This is where a markdown-sharing service earns or loses trust, so it gets the mo
 - **No accounts, no email, no behavioural profiles.** There is nothing to log in to and no identity to track.
 - **No third-party trackers or cross-site requests.** The UI font (Geist) is self-hosted, so loading a page contacts no one but mdshare; the only analytics is Cloudflare Web Analytics, which is cookieless and aggregate.
 - **Capability tokens are encrypted at rest.** The admin and share tokens stored in the database are AES-GCM encrypted under a key held only in the Worker's environment, so a database leak alone yields no working tokens — a request still authenticates against a separate hash, never the stored token.
+- **Optional sync stays unreadable to mdshare.** Turning on recent-documents sync stores a copy of the list, admin links included, encrypted in the browser with a key only the user's devices, private sync link or passkey hold. The server can't read it or tell whose it is, and deletes it after 12 months without use or when sync is turned off.
+- **The hosted MCP server only reads.** `mdshare.live/mcp` reads a document by share link, refuses admin links, and never stores or logs a key.
 - **Documents aren't indexed.** Every `/d/*` response carries `X-Robots-Tag: noindex, nofollow`, so shared content isn't crawled into search engines.
 - **Real, honest erasure.** The default 90-day expiry can be brought forward from the admin URL to delete sooner, share links can be revoked instantly, and deletion cascades to comments, version history, and links — the GDPR/DPDPA rights in the policy map to controls that genuinely exist.
 - **Honest note:** the Open Graph preview-card generator fetches fonts from Google *server-side* to render a document's title in its own script (including non-Latin ones). This is mdshare's server talking to Google — no visitor IP is ever involved — but it is a remaining third-party dependency, kept because it preserves multilingual link previews.
 
-Evidence: token encryption in [lib/token-crypto.ts](lib/token-crypto.ts), the self-hosted [public/fonts/](public/fonts/), the noindex header in [src/worker.ts](src/worker.ts), and [/privacy](https://mdshare.live/privacy).
+Evidence: token encryption in [lib/token-crypto.ts](lib/token-crypto.ts), sync encryption in [lib/keyring.ts](lib/keyring.ts), the hosted server in [lib/hosted-mcp.ts](lib/hosted-mcp.ts), the self-hosted [public/fonts/](public/fonts/), the noindex header in [src/worker.ts](src/worker.ts), and [/privacy](https://mdshare.live/privacy).
 
 ### Humans in the loop (AI does not cut people out) — ✅
 
