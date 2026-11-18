@@ -18,6 +18,7 @@ export default function DocsContent() {
             <strong>Base URL:</strong> <code>https://mdshare.live</code>
           </p>
           <p>Zero-login markdown sharing. Upload, get links, collaborate. No accounts needed.</p>
+          <p>Please send a <code>User-Agent</code> that names your app (for example <code>my-app/1.0</code>). We read it only to tell how a document was made (the website, the API, our MCP server or command line, the VS Code or Obsidian plugin), and keep only that category with the document. We don&rsquo;t store the header, and we don&rsquo;t track who you are.</p>
           <p className="text-sm text-neutral-500">
             Raw markdown: <code>curl https://mdshare.live/docs/raw</code>
           </p>
@@ -268,7 +269,7 @@ npx mdshare-mcp update <doc-id> notes.md   # refuses if someone edited it since
 npx mdshare-mcp --help                     # every command`}</code></pre>
 
           <h3>Hosted, read only</h3>
-          <p><code>https://mdshare.live/mcp</code> is an MCP server over Streamable HTTP, with nothing to install. Give it a share link and it can <code>read_document</code>, <code>list_comments</code> or <code>get_versions</code>. It refuses admin links and stores or logs no keys. To upload or edit, use the npm package.</p>
+          <p><code>https://mdshare.live/mcp</code> is an MCP server over Streamable HTTP, with nothing to install. Give it a share link and it can <code>read_document</code>, <code>list_comments</code> or <code>get_versions</code>. It refuses admin links and stores or logs no keys. The hosted MCP server keeps nothing about its callers. To upload or edit, use the npm package.</p>
 
           <h3>What to tell your AI</h3>
           <ul className="list-disc pl-5 space-y-1 text-sm text-neutral-300">

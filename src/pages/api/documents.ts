@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { nanoid } from "nanoid";
-import { getDB } from "../../../lib/db";
+import { getDB, rateLimitSalt } from "../../../lib/db";
 import { generateToken, hashToken, tokenPrefix } from "../../../lib/tokens";
 import { encryptToken } from "../../../lib/token-crypto";
 import { sanitizeMarkdown, contentHash, validateIsText, sanitizeTitle } from "../../../lib/sanitize";
@@ -23,7 +23,7 @@ export const POST: APIRoute = async ({ request }) => {
   // limiter above is per-isolate, so it never held across Cloudflare's edge —
   // a spam bot created 133 docs in a day past a nominal 50/day cap. This one
   // is D1-backed, so 50/day/IP actually holds.
-  const dailyLimit = await checkDurableRateLimit(db, ip, "create-daily", { max: 50, windowSec: 86400 });
+  const dailyLimit = await checkDurableRateLimit(db, ip, "create-daily", { max: 50, windowSec: 86400 }, rateLimitSalt());
   if (!dailyLimit.allowed) {
     return Response.json(
       { error: "Daily document creation limit reached (50 per day). Try again tomorrow." },

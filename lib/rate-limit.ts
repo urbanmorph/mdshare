@@ -63,10 +63,24 @@ export function checkRateLimit(
 }
 
 /**
+ * The D1 row key for a client: `<action>:<sha256 hex of salt + ":" + ip>`.
+ *
+ * The durable rows live until the daily cleanup (up to about two days), so
+ * they must never hold the raw IP. The salt is the RATE_LIMIT_SALT Worker
+ * secret; without it the IP is still hashed (with an empty salt), never stored.
+ */
+export async function rateLimitKey(action: string, ip: string, salt: string | undefined): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${salt ?? ""}:${ip}`));
+  const hex = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+  return `${action}:${hex}`;
+}
+
+/**
  * Durable, globally-coordinated rate limit backed by D1.
  *
  * Unlike checkRateLimit above (per-isolate memory), this shares one counter
- * across every edge isolate, so a per-IP cap actually holds. Use it for
+ * across every edge isolate, so a per-IP cap actually holds. Rows are keyed on
+ * a salted hash of the IP (rateLimitKey), never the IP itself. Use it for
  * low-frequency, abuse-prone endpoints (document creation) where an extra D1
  * write per request is acceptable — NOT on hot paths like poll().
  *
@@ -78,9 +92,10 @@ export async function checkDurableRateLimit(
   db: D1Database,
   ip: string,
   action: string,
-  config: RateLimitConfig
+  config: RateLimitConfig,
+  salt: string | undefined
 ): Promise<RateLimitResult> {
-  const key = `${action}:${ip}`;
+  const key = await rateLimitKey(action, ip, salt);
   const now = Date.now();
   const resetAt = now + config.windowSec * 1000;
 

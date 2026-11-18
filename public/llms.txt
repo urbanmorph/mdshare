@@ -6,7 +6,7 @@ mdshare turns any markdown into a shareable link. The primary interface is the M
 
 ## MCP server
 
-- Hosted, read only: `https://mdshare.live/mcp` (Streamable HTTP, no install). Pass a share link to `read_document`, `list_comments` or `get_versions`. It refuses admin links and stores or logs no keys; to upload or edit, use the npm package.
+- Hosted, read only: `https://mdshare.live/mcp` (Streamable HTTP, no install). Pass a share link to `read_document`, `list_comments` or `get_versions`. It refuses admin links and stores or logs no keys. The hosted MCP server keeps nothing about its callers. To upload or edit, use the npm package.
 - [mdshare-mcp on npm](https://www.npmjs.com/package/mdshare-mcp): install and run with `npx mdshare-mcp` (registry id `io.github.sathya-sankaran/mdshare`)
 - [MCP setup guide](https://mdshare.live/share-markdown-with-ai): connect Claude, ChatGPT, Gemini CLI, Cursor, or Windsurf
 
@@ -34,6 +34,8 @@ The same npm package is a command line when given a subcommand (with no argument
 - [REST API reference](https://mdshare.live/docs/raw): full endpoint docs, base URL `https://mdshare.live`
 - [MCP setup](https://mdshare.live/share-markdown-with-ai): use mdshare from an AI client
 - [About mdshare](https://mdshare.live/about): what mdshare is and who it is for
+
+Please send a `User-Agent` that names your app (for example `my-app/1.0`). We read it only to tell how a document was made (the website, the API, our MCP server or command line, the VS Code or Obsidian plugin), and keep only that category with the document. We don't store the header, and we don't track who you are.
 
 Quick reference:
 

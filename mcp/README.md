@@ -66,7 +66,7 @@ mdshare-mcp admin-url <doc-id>                   # the only command that prints 
 
 Someone sent you an mdshare link and you're in Claude.ai, ChatGPT or another client that connects by URL? Add `https://mdshare.live/mcp` as a remote MCP server (Claude Code: `claude mcp add --transport http mdshare https://mdshare.live/mcp`) and pass the link.
 
-It has three read-only tools: `read_document`, `list_comments` and `get_versions`. It **refuses admin links**, uses any other link only to read, and stores and logs no keys. Uploading, editing, comments, links and expiry stay in this package, which keeps admin links on your machine.
+It has three read-only tools: `read_document`, `list_comments` and `get_versions`. It **refuses admin links**, uses any other link only to read, and stores and logs no keys. The hosted MCP server keeps nothing about its callers. Uploading, editing, comments, links and expiry stay in this package, which keeps admin links on your machine.
 
 ## Tools
 
