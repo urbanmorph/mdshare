@@ -4,7 +4,8 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
-import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import rehypeSanitize from "rehype-sanitize";
+import { sanitizeSchema } from "./markdown-schema.ts";
 import rehypeHighlight from "rehype-highlight";
 import rehypeStringify from "rehype-stringify";
 import type { Root, Element } from "hast";
@@ -180,9 +181,12 @@ The \`GET /api/d/:id\` response also includes \`last_edited_by\`, \`last_edited_
 | Endpoint | Limit |
 |----------|-------|
 | \`POST /api/documents\` | 10 per minute, 50 per day per IP |
-| \`PUT /api/d/:id\` | 30 per minute per IP |
+| \`PUT\` and \`PATCH /api/d/:id\` | 30 per minute per IP |
 | \`POST /api/d/:id/comments\` | 20 per minute per IP |
 | \`POST /api/d/:id/poll\` | 20 per minute per IP |
+| \`POST /api/d/:id/links\` | 20 per minute per IP |
+| \`PUT /api/d/:id/expiry\` | 10 per minute per IP |
+| \`PATCH /api/comments/:id\` | 30 per minute per IP |
 
 Rate-limited responses return \`429\` with a \`Retry-After\` header.
 
@@ -209,7 +213,7 @@ Rate-limited responses return \`429\` with a \`Retry-After\` header.
 | \`410\` | Document has expired |
 | \`429\` | Rate limited (check \`Retry-After\` header) |
 
-Length limits apply to comment content, author names, anchor text, link labels and titles.
+Length limits, in characters (over a limit is a \`400\`): comment content 10,000; author name 100; anchor text 5,000; link label 200. Titles longer than 200 characters are cut to 200.
 
 ---
 
@@ -395,15 +399,7 @@ function docsPage() {
   return walk;
 }
 
-// The same pipeline the document viewer uses (components/editor/markdown-viewer.tsx).
-const sanitizeSchema = {
-  ...defaultSchema,
-  attributes: {
-    ...defaultSchema.attributes,
-    code: [...(defaultSchema.attributes?.code || []), "className"],
-    span: [...(defaultSchema.attributes?.span || []), "className"],
-  },
-};
+// Rendered like documents are (components/editor/markdown-html.ts), with the same sanitizer.
 
 export function renderDocsHtml(markdown: string = DOCS_MARKDOWN): string {
   return String(

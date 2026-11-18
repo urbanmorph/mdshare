@@ -1,14 +1,9 @@
 // Small request helpers shared by the API routes: JSON bodies, header text, input caps,
 // dates and the per-isolate rate limit.
 import { checkRateLimit, rateLimitResponse } from "./rate-limit.ts";
+import { LIMITS } from "./limits.ts";
 
-/** Caps on user-supplied text, in characters. Over the cap is a 400. */
-export const LIMITS = {
-  comment: 10_000,
-  authorName: 100,
-  anchorText: 5_000,
-  label: 200,
-} as const;
+export { LIMITS };
 
 const bad = (error: string) => Response.json({ error }, { status: 400 });
 

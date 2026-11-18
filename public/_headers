@@ -18,3 +18,8 @@
 /mdshare-vscode.vsix
   Content-Type: application/vsix
   Content-Disposition: attachment; filename="mdshare-vscode.vsix"
+
+# /docs/raw is prerendered to a file with no extension, so the Content-Type that
+# src/pages/docs/raw.ts sets is lost; without this rule it goes out with none.
+/docs/raw
+  Content-Type: text/markdown; charset=utf-8

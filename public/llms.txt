@@ -48,7 +48,7 @@ Quick reference:
 - Versions: `GET /api/d/{id}/versions?key={key}`
 - Presence: `POST /api/d/{id}/presence?key={key}` (`{session_id, name}`)
 - Permissions: `adm_` full control · `edt_` read+write · `cmt_` read+comment · `viw_` read only
-- Limits: 90-day expiry · 10 creates/min, 50/day per IP · 30 updates/min · 20 comments/min · max 50 active links/doc · max 10MB · 429 includes Retry-After · malformed JSON or an over-long field (comment, name, anchor text, link label, title) returns 400 · every API route returns 410 Gone for an expired doc
+- Limits: 90-day expiry · 10 creates/min, 50/day per IP · 30 updates/min · 20 comments/min · max 50 active links/doc · max 10MB · 429 includes Retry-After · malformed JSON or an over-long field (comment 10,000 chars, name 100, anchor text 5,000, link label 200) returns 400; titles are cut to 200 · every API route returns 410 Gone for an expired doc
 
 ## Convert then share
 

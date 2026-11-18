@@ -195,7 +195,7 @@ Please send a `User-Agent` that names your app (for example `my-app/1.0`). We re
 | Comments | `POST /api/d/{id}/comments?key={key}` |
 | Versions | `GET /api/d/{id}/versions?key={key}` |
 
-Limits: 10 MB per document; 10 creates per minute and 50 per day per IP; 30 updates per minute; 20 comments per minute; 50 active links per document; length limits on comments, author names, anchor text, link labels and titles. A 429 includes `Retry-After`; malformed JSON or an over-long field returns 400; every API route returns 410 for an expired document.
+Limits: 10 MB per document; 10 creates per minute and 50 per day per IP; 30 updates per minute; 20 comments per minute; 50 active links per document; length limits on comments (10,000 characters), author names (100), anchor text (5,000) and link labels (200); titles are cut to 200. A 429 includes `Retry-After`; malformed JSON or an over-long field returns 400; every API route returns 410 for an expired document.
 
 ## Privacy and permissions
 

@@ -22,8 +22,6 @@ interface DocumentViewProps {
   document: DocumentRow;
   permission: Permission;
   tokenKey: string;
-  /** Unused: the comment bubble is always on. Still passed by src/pages/d/[id].astro. */
-  enableCommentBubble?: boolean;
 }
 
 /** Whether this page was opened from "create", which adds ?new=1 to the admin link. */

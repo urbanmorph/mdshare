@@ -26,3 +26,9 @@ test("the VS Code extension downloads as a .vsix attachment", () => {
   assert.equal(h["content-type"], "application/vsix");
   assert.equal(h["content-disposition"], 'attachment; filename="mdshare-vscode.vsix"');
 });
+
+// /docs/raw is prerendered to a file with no extension, so the Content-Type set in
+// src/pages/docs/raw.ts never reaches the browser; the asset server would send none.
+test("/docs/raw is served as markdown", () => {
+  assert.equal(rule("/docs/raw")["content-type"], "text/markdown; charset=utf-8");
+});
