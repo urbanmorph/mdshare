@@ -55,3 +55,41 @@ test("the snapshot is referentially stable until storage changes (useSyncExterna
   assert.equal(b[0].id, "d");
   assert.equal(getRecentDocsSnapshot(), b);
 });
+
+test("a stored value that isn't a list of documents reads as empty (Home must still render)", async () => {
+  const { parseRecentDocs } = await import("./recent-docs.ts");
+  for (const raw of [null, "", "null", "{}", '"text"', "42", "not json{", '[1, null, "x", {"id": 3}]']) {
+    assert.deepEqual(parseRecentDocs(raw), [], `raw: ${raw}`);
+  }
+});
+
+test("a valid stored list parses unchanged, and junk entries inside it are skipped", async () => {
+  const { parseRecentDocs } = await import("./recent-docs.ts");
+  const good: RecentDoc = { id: "a", title: "A", key: "adm_x", permission: "admin", visitedAt: 1 };
+  assert.deepEqual(parseRecentDocs(JSON.stringify([good])), [good]);
+  assert.deepEqual(parseRecentDocs(JSON.stringify([null, good, { id: "b" }])), [good]);
+});
+
+test('the snapshot reads a stored "null" or junk as an empty list instead of crashing', async () => {
+  const store = new Map<string, string>();
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+  };
+  const { getRecentDocsSnapshot } = await import("./recent-docs.ts");
+  for (const raw of ["null", "junk", '{"a":1}']) {
+    store.set("mdshare_recent", raw);
+    assert.deepEqual(getRecentDocsSnapshot(), [], raw);
+  }
+});
+
+test("blocked storage reads as an empty list, and saving does not throw", async () => {
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem() { throw new Error("blocked"); },
+    setItem() { throw new Error("blocked"); },
+  };
+  const { getRecentDocsSnapshot, readRecentDocs, saveRecentDoc } = await import("./recent-docs.ts");
+  assert.deepEqual(getRecentDocsSnapshot(), []);
+  assert.deepEqual(readRecentDocs(), []);
+  assert.doesNotThrow(() => saveRecentDoc({ id: "d", title: "d", key: "k", permission: "admin" }));
+});

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 
 const UPLOAD_VERBS = [
@@ -6,12 +5,6 @@ const UPLOAD_VERBS = [
   "Checking for gremlins...",
   "Generating share links...",
   "Almost there...",
-];
-
-const SAVE_VERBS = [
-  "Saving changes...",
-  "Persisting edits...",
-  "Syncing content...",
 ];
 
 const COMMENT_VERBS = [
@@ -22,12 +15,6 @@ const COMMENT_VERBS = [
 const LINK_VERBS = [
   "Minting a fresh link...",
   "Setting permissions...",
-];
-
-const GENERIC_VERBS = [
-  "Loading...",
-  "Warming up...",
-  "Fetching content...",
 ];
 
 const PANEL_COMMENTS_VERBS = [
@@ -42,24 +29,17 @@ const PANEL_LINKS_VERBS = [
   "Preparing link manager...",
 ];
 
-export type SpinnerContext = "upload" | "save" | "comment" | "link" | "generic" | "panel-comments" | "panel-links";
+type SpinnerContext = "upload" | "comment" | "link" | "panel-comments" | "panel-links";
 
 const VERB_MAP: Record<SpinnerContext, string[]> = {
   upload: UPLOAD_VERBS,
-  save: SAVE_VERBS,
   comment: COMMENT_VERBS,
   link: LINK_VERBS,
-  generic: GENERIC_VERBS,
   "panel-comments": PANEL_COMMENTS_VERBS,
   "panel-links": PANEL_LINKS_VERBS,
 };
 
-interface SpinnerProps {
-  context?: SpinnerContext;
-  className?: string;
-}
-
-export function Spinner({ context = "generic", className = "" }: SpinnerProps) {
+export function Spinner({ context }: { context: SpinnerContext }) {
   const verbs = VERB_MAP[context];
   const [verbIndex, setVerbIndex] = useState(0);
 
@@ -72,7 +52,7 @@ export function Spinner({ context = "generic", className = "" }: SpinnerProps) {
   }, [verbs]);
 
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
+    <span className="inline-flex items-center gap-2">
       <svg
         className="w-4 h-4 animate-spin text-indigo-400"
         fill="none"

@@ -1,3 +1,5 @@
+import { safeGet, safeRemove, safeSet } from "./storage.ts";
+
 const STORAGE_KEY = "mdshare_recent";
 // Visits with view/comment/edit keys are a convenience, so only the latest few
 // are kept. Admin keys are the only way back to a document you own (no
@@ -36,18 +38,40 @@ export function addRecentDoc(
 }
 
 /** Fired on this page when the list changes here (the "storage" event covers other tabs). */
-export const RECENT_CHANGED = "mdshare:recent-changed";
+const RECENT_CHANGED = "mdshare:recent-changed";
 
-export function readRecentDocs(storage: Storage = localStorage): RecentDoc[] {
+/** Where the list lives: localStorage by default, or a stand-in (tests, sync). */
+export type RecentStore = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+/** localStorage that never throws (blocked site data, SSR). */
+export const safeStore: RecentStore = { getItem: safeGet, setItem: safeSet, removeItem: safeRemove };
+
+const isRecentDoc = (d: unknown): d is RecentDoc =>
+  typeof d === "object" && d !== null &&
+  typeof (d as RecentDoc).id === "string" && typeof (d as RecentDoc).key === "string";
+
+/** The stored list, or [] for anything else ("null", junk, a non-list); bad entries are skipped. */
+export function parseRecentDocs(raw: string | null): RecentDoc[] {
+  let list: unknown;
   try {
-    const list = JSON.parse(storage.getItem(STORAGE_KEY) || "[]");
-    return Array.isArray(list) ? (list as RecentDoc[]) : [];
+    list = JSON.parse(raw || "[]");
   } catch {
     return [];
   }
+  return Array.isArray(list) ? list.filter(isRecentDoc) : [];
 }
 
-export function writeRecentDocs(list: RecentDoc[], storage: Storage = localStorage) {
+export function readRecentDocs(storage: RecentStore = safeStore): RecentDoc[] {
+  let raw: string | null = null;
+  try {
+    raw = storage.getItem(STORAGE_KEY);
+  } catch {
+    // unreadable storage reads as empty
+  }
+  return parseRecentDocs(raw);
+}
+
+export function writeRecentDocs(list: RecentDoc[], storage: RecentStore = safeStore) {
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch {
@@ -62,24 +86,15 @@ export function saveRecentDoc(doc: Omit<RecentDoc, "visitedAt">) {
 
 // Store adapter for React's useSyncExternalStore: the snapshot must keep the
 // same reference until the stored value changes, and the server renders none.
-let cachedRaw: string | null = null;
+let cachedRaw: string | null | undefined;
 let cached: RecentDoc[] = [];
 const NONE: RecentDoc[] = [];
 
 export function getRecentDocsSnapshot(): RecentDoc[] {
-  let raw = "[]";
-  try {
-    raw = localStorage.getItem(STORAGE_KEY) || "[]";
-  } catch {
-    // unavailable storage reads as empty
-  }
+  const raw = safeGet(STORAGE_KEY);
   if (raw !== cachedRaw) {
     cachedRaw = raw;
-    try {
-      cached = JSON.parse(raw) as RecentDoc[];
-    } catch {
-      cached = [];
-    }
+    cached = parseRecentDocs(raw);
   }
   return cached;
 }
