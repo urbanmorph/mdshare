@@ -205,7 +205,7 @@ Limits: 10 MB per document; 10 creates per minute and 50 per day per IP; 30 upda
 - **Documents expire** 90 days after creation by default. The admin can move the expiry to any future date up to a year out. A daily job deletes expired documents with their comments, versions and links.
 - **What is collected:** document content, comments with the display name the commenter chooses, transient IP and user-agent logs at Cloudflare for abuse detection, and aggregate page-view counts through Cloudflare Web Analytics (no cookies). No email addresses, trackers or profiles.
 - **How a document was made:** each document keeps only the category it was made through (upload, blank, paste, API, MCP, command line, VS Code or Obsidian), worked out from the request's `User-Agent`, `X-Source` and `Origin` headers. The headers themselves, and any version in them, are not stored.
-- **Rate limits:** To enforce rate limits we keep a salted hash of your IP address, never the address itself, for at most the length of the limit's window (a day at most), then delete it.
+- **Rate limits:** To enforce rate limits we keep a salted hash of your IP address, never the address itself, until a daily clean-up after the limit's window ends (about two days at most), then delete it.
 
 Full policy, including GDPR and DPDPA rights: [mdshare.live/privacy](https://mdshare.live/privacy).
 
