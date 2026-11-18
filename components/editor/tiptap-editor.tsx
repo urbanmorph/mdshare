@@ -1,45 +1,47 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { Toolbar } from "./toolbar";
-import { editorExtensions } from "./extensions";
-import type { CommentAnchor } from "./comment-highlight";
+import { promptForLink } from "./toolbar-state";
+import { editorExtensions, getMarkdown } from "./extensions";
+import { setCommentAnchors, type CommentAnchor } from "./comment-highlight";
+import { createDebouncedSave, type SaveOptions } from "./debounced-save";
+
+const SAVE_DELAY_MS = 3000;
 
 interface TiptapEditorProps {
   content: string;
   /** Bumped by the parent each time `content` arrives from someone else (socket, poll, conflict). */
-  contentRevision?: number;
+  contentRevision: number;
   /** Called once the editor shows the content of a given revision. */
-  onContentApplied?: (revision: number) => void;
+  onContentApplied: (revision: number) => void;
   editable: boolean;
-  onUpdate?: (markdown: string) => void;
-  commentAnchors?: CommentAnchor[];
-  activeCommentId?: string | null;
-  className?: string;
-  lightMode?: boolean;
-  onToggleLight?: () => void;
-  isAdmin?: boolean;
-  canComment?: boolean;
+  /** Saves the markdown. Called 3 s after the last edit, or at once on Cmd+S and when the tab is hidden. */
+  onUpdate?: (markdown: string, opts?: SaveOptions) => void;
+  /** Keep the same array while the comments are unchanged; a new array rebuilds the highlights. */
+  commentAnchors: CommentAnchor[];
+  activeCommentId: string | null;
+  lightMode: boolean;
+  onToggleLight: () => void;
+  isAdmin: boolean;
   onRequestComment?: (text: string, anchorStart: number, anchorEnd: number) => void;
 }
 
 export function TiptapEditor({
   content,
-  contentRevision = 0,
+  contentRevision,
   onContentApplied,
   editable,
   onUpdate,
-  commentAnchors = [],
-  activeCommentId = null,
-  className = "",
+  commentAnchors,
+  activeCommentId,
   lightMode,
   onToggleLight,
   isAdmin,
-  canComment,
   onRequestComment,
 }: TiptapEditorProps) {
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saverRef = useRef<ReturnType<typeof createDebouncedSave> | null>(null);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -52,46 +54,64 @@ export function TiptapEditor({
         // character — RTL content (Arabic/Hebrew) right-aligns correctly, LTR is
         // unaffected. No UI, no language detection.
         dir: "auto",
-        class: `prose prose-invert prose-sm max-w-none focus:outline-none ${className}`,
+        class: "prose prose-invert prose-sm max-w-none focus:outline-none",
       },
-    },
-    onUpdate: ({ editor }) => {
-      if (!onUpdate) return;
-
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        debounceRef.current = null;
-        const md = (editor.storage as unknown as { markdown: { getMarkdown: () => string } }).markdown.getMarkdown();
-        onUpdate(md);
-      }, 3000);
     },
   });
 
-  // Sync comment anchors into the extension storage and trigger redecoration
+  const save = useEffectEvent((markdown: string, opts?: SaveOptions) => onUpdate?.(markdown, opts));
+
+  // Edits save 3 s after the last keystroke, or at once on Cmd+S. When the tab is hidden
+  // or closed the pending edit goes out with keepalive, so closing within 3 s loses nothing.
   useEffect(() => {
-    if (!editor) return;
-    const storage = editor.storage as unknown as {
-      commentHighlight: { anchors: CommentAnchor[]; activeCommentId: string | null };
+    if (!editor || !editable) return;
+    const saver = createDebouncedSave(() => getMarkdown(editor), (md, opts) => save(md, opts), SAVE_DELAY_MS);
+    saverRef.current = saver;
+    // "update" fires for local edits only: remote content is applied with emitUpdate: false.
+    const onEdit = () => saver.schedule();
+    const flushKeepalive = () => saver.flush({ keepalive: true });
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushKeepalive();
     };
-    storage.commentHighlight.anchors = commentAnchors;
-    storage.commentHighlight.activeCommentId = activeCommentId;
-    // Force a transaction to re-run the plugin's apply
-    editor.view.dispatch(editor.state.tr);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === "s") {
+        e.preventDefault();
+        saver.flush();
+      } else if (key === "k") {
+        e.preventDefault();
+        promptForLink(editor);
+      }
+    };
+    editor.on("update", onEdit);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flushKeepalive);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      editor.off("update", onEdit);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flushKeepalive);
+      window.removeEventListener("keydown", onKeyDown);
+      flushKeepalive();
+      saverRef.current = null;
+    };
+  }, [editor, editable]);
+
+  useEffect(() => {
+    if (editor) setCommentAnchors(editor, commentAnchors, activeCommentId);
   }, [editor, commentAnchors, activeCommentId]);
 
   // Scroll to a highlighted anchor when activeCommentId changes
   useEffect(() => {
     if (!editor || !activeCommentId) return;
-
     // Small delay to let decorations render
-    setTimeout(() => {
-      const el = editor.view.dom.querySelector(
-        `[data-comment-id="${activeCommentId}"]`
-      );
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+    const timer = setTimeout(() => {
+      editor.view.dom
+        .querySelector(`[data-comment-id="${CSS.escape(activeCommentId)}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 50);
+    return () => clearTimeout(timer);
   }, [editor, activeCommentId]);
 
   // Apply content that arrives from someone else (live updates, resync, conflict).
@@ -104,10 +124,9 @@ export function TiptapEditor({
   const appliedRevision = useRef(contentRevision);
   useEffect(() => {
     if (!editor || contentRevision === appliedRevision.current) return;
-    if (debounceRef.current) return;
+    if (saverRef.current?.pending()) return;
     appliedRevision.current = contentRevision;
-    const current = (editor.storage as unknown as { markdown: { getMarkdown: () => string } }).markdown.getMarkdown();
-    if (current !== content) {
+    if (getMarkdown(editor) !== content) {
       const { from, to } = editor.state.selection;
       editor.commands.setContent(content, { emitUpdate: false });
       if (editor.isFocused) {
@@ -115,49 +134,17 @@ export function TiptapEditor({
         editor.commands.setTextSelection({ from: Math.min(from, end), to: Math.min(to, end) });
       }
     }
-    onContentApplied?.(contentRevision);
+    onContentApplied(contentRevision);
   }, [content, contentRevision, editor, onContentApplied]);
-
-  // Cmd+K shortcut for link insertion
-  useEffect(() => {
-    if (!editor || !editable) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        if (editor.isActive("link")) {
-          const currentUrl = editor.getAttributes("link").href || "";
-          const url = prompt("Edit or clear URL (empty to remove):", currentUrl);
-          if (url === null) return;
-          if (url === "") {
-            editor.chain().focus().unsetLink().run();
-          } else {
-            editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-          }
-        } else {
-          const url = prompt("Enter URL:", "https://");
-          if (url) editor.chain().focus().toggleLink({ href: url }).run();
-        }
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editor, editable]);
-
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
 
   if (!editor) return null;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {editable && <Toolbar editor={editor} lightMode={lightMode} onToggleLight={onToggleLight} isAdmin={isAdmin} />}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6" id="editor-scroll-container">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         <EditorContent editor={editor} />
-        {canComment && onRequestComment && editor && (
+        {onRequestComment && (
           <BubbleMenu
             editor={editor}
             shouldShow={({ editor: e }) => {

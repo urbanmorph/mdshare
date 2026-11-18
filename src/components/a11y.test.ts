@@ -12,6 +12,7 @@ const read = (file: string) => readFileSync(resolve(ROOT, file), "utf8");
 
 const DOCUMENT_PAGE = [
   "src/components/DocumentView.tsx",
+  "src/components/DocumentParts.tsx",
   "components/editor/comment-sidebar.tsx",
   "components/ui/link-manager.tsx",
   "components/ui/shortcuts-help.tsx",
