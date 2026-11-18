@@ -2,7 +2,7 @@
 
 > Share markdown as a link anyone can comment on and edit, with no account. Free. Upload markdown, get a shareable link, collaborate in real time; works from the browser and from AI tools via MCP.
 
-mdshare turns any markdown into a shareable link. The primary interface is the MCP server (`npx mdshare-mcp`; the same package is also a command line), which works with Claude, ChatGPT/Codex, Gemini CLI, Cursor, and Windsurf. MCP tools: `upload_markdown`, `read_document`, `update_document`, `patch_document`, `generate_link`, `list_links`, `revoke_link`, `list_comments`, `post_comment`, `resolve_comment`, `get_versions`, `list_my_documents`, `get_admin_url`, `register_document`. The bundled `mdshare-tools` skill auto-invokes on prompts like "share this markdown", "publish my notes", or "give me a link for this doc".
+mdshare turns any markdown into a shareable link. The primary interface is the MCP server (`npx mdshare-mcp`; the same package is also a command line), which works with Claude, ChatGPT/Codex, Gemini CLI, Cursor, and Windsurf. MCP tools: `upload_markdown`, `read_document`, `update_document`, `patch_document`, `generate_link`, `list_links`, `revoke_link`, `list_comments`, `post_comment`, `resolve_comment`, `get_versions`, `set_expiry`, `list_my_documents`, `get_admin_url`, `register_document`. The bundled `mdshare-tools` skill auto-invokes on prompts like "share this markdown", "publish my notes", or "give me a link for this doc".
 
 ## MCP server
 

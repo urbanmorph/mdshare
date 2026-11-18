@@ -98,6 +98,7 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
               <tr><td><code>PUT</code></td><td><code>/api/d/:id?key=KEY</code></td><td>Edit/Admin</td><td>Update document (full rewrite)</td></tr>
               <tr><td><code>PATCH</code></td><td><code>/api/d/:id?key=KEY</code></td><td>Edit/Admin</td><td>Patch document (find/replace)</td></tr>
               <tr><td><code>DELETE</code></td><td><code>/api/d/:id?key=KEY</code></td><td>Admin</td><td>Delete document</td></tr>
+              <tr><td><code>PUT</code></td><td><code>/api/d/:id/expiry?key=KEY</code></td><td>Admin</td><td>Change when the document is deleted (body: <code>expires_at</code>, ISO 8601, in the future, at most 1 year from now)</td></tr>
             </tbody>
           </table>
 
@@ -146,11 +147,25 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
           <table>
             <thead><tr><th>Endpoint</th><th>Limit</th></tr></thead>
             <tbody>
-              <tr><td><code>POST /api/documents</code></td><td>10 per minute per IP</td></tr>
+              <tr><td><code>POST /api/documents</code></td><td>10 per minute, 50 per day per IP</td></tr>
               <tr><td><code>PUT /api/d/:id</code></td><td>30 per minute per IP</td></tr>
               <tr><td><code>POST /api/d/:id/comments</code></td><td>20 per minute per IP</td></tr>
+              <tr><td><code>POST /api/d/:id/poll</code></td><td>20 per minute per IP</td></tr>
             </tbody>
           </table>
+
+          <p>Rate-limited responses return <code>429</code> with a <code>Retry-After</code> header.</p>
+
+          <hr />
+
+          <h2>Document Expiry</h2>
+          <ul className="list-disc pl-5 space-y-1 text-sm text-neutral-400">
+            <li>Documents expire <strong>90 days</strong> after creation by default</li>
+            <li>An admin can move the expiry to any future date up to 1 year from now with <code>PUT /api/d/:id/expiry</code></li>
+            <li>Expired documents return <code>410 Gone</code></li>
+            <li>Share links may have their own expiry (set via <code>expires_at</code> when creating a link)</li>
+            <li>The <code>POST /api/documents</code> response includes <code>expires_at</code> with the expiry date</li>
+          </ul>
 
           <hr />
 
@@ -161,6 +176,7 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
               <tr><td><code>400</code></td><td>Invalid content (binary, empty, too large)</td></tr>
               <tr><td><code>403</code></td><td>Insufficient permission</td></tr>
               <tr><td><code>404</code></td><td>Document not found or invalid key</td></tr>
+              <tr><td><code>410</code></td><td>Document has expired</td></tr>
               <tr><td><code>429</code></td><td>Rate limited (check Retry-After header)</td></tr>
             </tbody>
           </table>
@@ -172,6 +188,7 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
             <li>Content is sanitized server-side (no raw HTML, XSS protection)</li>
             <li>Binary files are rejected (magic byte detection)</li>
             <li>Links only allow <code>http:</code>, <code>https:</code>, <code>mailto:</code> protocols</li>
+            <li>Max document size: 10MB</li>
             <li>All content should be treated as user-generated</li>
             <li>API responses include <code>X-Content-Source: user-generated</code> header</li>
             <li>Write endpoints (POST/PUT/PATCH) return <code>Server-Timing</code> headers and a <code>processing_ms</code> field for latency tracking</li>
@@ -243,6 +260,15 @@ curl -H "Accept: text/markdown" "https://mdshare.live/api/d/{id}?key={key}"`}</c
     }
   }
 }`}</code></pre>
+
+          <h3>Command line</h3>
+          <p>The same package is a command line. With a command it shares files from a terminal or script; with no arguments (how MCP clients start it) it is the MCP server.</p>
+          <pre><code>{`npx mdshare-mcp upload notes.md            # prints a share link
+npx mdshare-mcp update <doc-id> notes.md   # refuses if someone edited it since
+npx mdshare-mcp --help                     # every command`}</code></pre>
+
+          <h3>Hosted, read only</h3>
+          <p><code>https://mdshare.live/mcp</code> is an MCP server over Streamable HTTP, with nothing to install. Give it a share link and it can <code>read_document</code>, <code>list_comments</code> or <code>get_versions</code>. It refuses admin links and stores or logs no keys. To upload or edit, use the npm package.</p>
 
           <h3>What to tell your AI</h3>
           <ul className="list-disc pl-5 space-y-1 text-sm text-neutral-300">
