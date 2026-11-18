@@ -45,6 +45,11 @@ export default [
     },
   },
   {
+    // One-off Node scripts (run with `node scripts/...`), not bundled code.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: globals.node },
+  },
+  {
     files: ["worker/**/*.ts", "src/worker.ts"],
     languageOptions: { globals: globals.worker },
   },
